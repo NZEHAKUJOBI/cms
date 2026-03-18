@@ -1,0 +1,72 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using PSCMS.Common;
+using PSCMS.DTOs.Shipment;
+using PSCMS.Services.Interfaces;
+using System.Security.Claims;
+
+namespace PSCMS.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class ShipmentsController : ControllerBase
+{
+    private readonly IShipmentService _shipmentService;
+
+    public ShipmentsController(IShipmentService shipmentService) => _shipmentService = shipmentService;
+
+    /// <summary>Get paginated shipments, optionally filtered by facility or status.</summary>
+    [HttpGet]
+    public async Task<IActionResult> GetAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] Guid? facilityId = null,
+        [FromQuery] string? status = null)
+    {
+        var result = await _shipmentService.GetAllAsync(page, pageSize, facilityId, status);
+        return Ok(ApiResponse<PagedResult<ShipmentDto>>.Ok(result));
+    }
+
+    /// <summary>Get a shipment by ID.</summary>
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id)
+    {
+        var shipment = await _shipmentService.GetByIdAsync(id);
+        if (shipment is null) return NotFound(ApiResponse<string>.Fail("Shipment not found."));
+        return Ok(ApiResponse<ShipmentDto>.Ok(shipment));
+    }
+
+    /// <summary>Create a new shipment dispatch (Admin only).</summary>
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Create([FromBody] CreateShipmentDto dto)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        try
+        {
+            var shipment = await _shipmentService.CreateAsync(dto, userId);
+            return CreatedAtAction(nameof(GetById), new { id = shipment.Id }, ApiResponse<ShipmentDto>.Ok(shipment, "Shipment created."));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<string>.Fail(ex.Message));
+        }
+    }
+
+    /// <summary>Update shipment status (e.g., InTransit, Delivered, Received).</summary>
+    [HttpPatch("{id:guid}/status")]
+    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateShipmentStatusDto dto)
+    {
+        try
+        {
+            var shipment = await _shipmentService.UpdateStatusAsync(id, dto);
+            if (shipment is null) return NotFound(ApiResponse<string>.Fail("Shipment not found."));
+            return Ok(ApiResponse<ShipmentDto>.Ok(shipment, "Shipment status updated."));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<string>.Fail(ex.Message));
+        }
+    }
+}
