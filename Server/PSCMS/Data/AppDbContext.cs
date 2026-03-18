@@ -25,7 +25,7 @@ public class AppDbContext : DbContext
         {
             e.HasIndex(u => u.Email).IsUnique();
             e.HasIndex(u => u.Username).IsUnique();
-            e.Property(u => u.Role).HasConversion<string>();
+            e.Property(u => u.Role).HasConversion<string>().HasColumnType("text");
         });
 
         // Product
@@ -38,7 +38,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Facility>(e =>
         {
             e.HasIndex(f => f.Code).IsUnique();
-            e.Property(f => f.Type).HasConversion<string>();
+            e.Property(f => f.Type).HasConversion<string>().HasColumnType("text");
         });
 
         // Inventory: unique per facility+product
@@ -53,7 +53,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Order>(e =>
         {
             e.HasIndex(o => o.OrderNumber).IsUnique();
-            e.Property(o => o.Status).HasConversion<string>();
+            e.Property(o => o.Status).HasConversion<string>().HasColumnType("text");
             e.HasOne(o => o.Facility).WithMany(f => f.Orders).HasForeignKey(o => o.FacilityId).OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -68,7 +68,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Shipment>(e =>
         {
             e.HasIndex(s => s.ShipmentNumber).IsUnique();
-            e.Property(s => s.Status).HasConversion<string>();
+            e.Property(s => s.Status).HasConversion<string>().HasColumnType("text");
             e.HasOne(s => s.Facility).WithMany(f => f.Shipments).HasForeignKey(s => s.FacilityId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(s => s.Order).WithMany(o => o.Shipments).HasForeignKey(s => s.OrderId).OnDelete(DeleteBehavior.SetNull);
         });
