@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PSCMS.Data;
@@ -11,9 +12,11 @@ using PSCMS.Data;
 namespace PSCMS.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260412092534_FixSeedData")]
+    partial class FixSeedData
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -388,7 +391,7 @@ namespace PSCMS.Data.Migrations
                             CreatedAt = new DateTime(2026, 3, 18, 22, 37, 6, 0, DateTimeKind.Utc),
                             Email = "admin@pscms.org",
                             IsActive = true,
-                            PasswordHash = "$2a$11$3key4UV6y0c.JjCXNE94Te3PF.NIAFSsi286X7wJX/jiaoFyoK3VG",
+                            PasswordHash = "$2a$11$zGPb1ShNMqdTl4WV0cH4g.rHGqXaVSUkEm2Z6yNE8WUYQ9IVoeTbq",
                             Role = "Admin",
                             UpdatedAt = new DateTime(2026, 3, 18, 22, 37, 6, 0, DateTimeKind.Utc),
                             Username = "admin"

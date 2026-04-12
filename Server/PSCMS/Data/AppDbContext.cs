@@ -86,12 +86,12 @@ public class AppDbContext : DbContext
             Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
             Username = "admin",
             Email = "admin@pscms.org",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@1234"),
+            PasswordHash = "$2a$11$3key4UV6y0c.JjCXNE94Te3PF.NIAFSsi286X7wJX/jiaoFyoK3VG",
             Role = UserRole.Admin,
             FacilityId = null,
             IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = new DateTime(2026, 3, 18, 22, 37, 6, DateTimeKind.Utc),
+            UpdatedAt = new DateTime(2026, 3, 18, 22, 37, 6, DateTimeKind.Utc)
         });
     }
 }

@@ -70,6 +70,94 @@ public class AuthService : IAuthService
         return true;
     }
 
+    public async Task<List<UserDto>> GetUsersAsync()
+    {
+        return await _db.Users
+            .Include(u => u.Facility)
+            .OrderBy(u => u.Username)
+            .Select(u => new UserDto
+            {
+                Id = u.Id,
+                Username = u.Username,
+                Email = u.Email,
+                Role = u.Role.ToString(),
+                FacilityId = u.FacilityId,
+                FacilityName = u.Facility != null ? u.Facility.Name : null,
+                IsActive = u.IsActive,
+                CreatedAt = u.CreatedAt
+            })
+            .ToListAsync();
+    }
+
+    public async Task<UserDto> CreateUserAsync(CreateUserDto dto)
+    {
+        if (await _db.Users.AnyAsync(u => u.Email == dto.Email))
+            throw new InvalidOperationException("Email already registered.");
+
+        if (await _db.Users.AnyAsync(u => u.Username == dto.Username))
+            throw new InvalidOperationException("Username already taken.");
+
+        if (!Enum.TryParse<UserRole>(dto.Role, out var role))
+            throw new InvalidOperationException($"Invalid role: {dto.Role}.");
+
+        var user = new User
+        {
+            Username = dto.Username,
+            Email = dto.Email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+            Role = role,
+            FacilityId = dto.FacilityId
+        };
+
+        _db.Users.Add(user);
+        await _db.SaveChangesAsync();
+        await _db.Entry(user).Reference(u => u.Facility).LoadAsync();
+
+        return new UserDto
+        {
+            Id = user.Id,
+            Username = user.Username,
+            Email = user.Email,
+            Role = user.Role.ToString(),
+            FacilityId = user.FacilityId,
+            FacilityName = user.Facility?.Name,
+            IsActive = user.IsActive,
+            CreatedAt = user.CreatedAt
+        };
+    }
+
+    public async Task<UserDto?> UpdateUserAsync(Guid id, UpdateUserDto dto)
+    {
+        var user = await _db.Users.Include(u => u.Facility).FirstOrDefaultAsync(u => u.Id == id);
+        if (user is null) return null;
+
+        if (dto.Role is not null)
+        {
+            if (!Enum.TryParse<UserRole>(dto.Role, out var role))
+                throw new InvalidOperationException($"Invalid role: {dto.Role}.");
+            user.Role = role;
+        }
+
+        if (dto.FacilityId is not null) user.FacilityId = dto.FacilityId;
+        if (dto.IsActive is not null) user.IsActive = dto.IsActive.Value;
+
+        user.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        await _db.Entry(user).Reference(u => u.Facility).LoadAsync();
+
+        return new UserDto
+        {
+            Id = user.Id,
+            Username = user.Username,
+            Email = user.Email,
+            Role = user.Role.ToString(),
+            FacilityId = user.FacilityId,
+            FacilityName = user.Facility?.Name,
+            IsActive = user.IsActive,
+            CreatedAt = user.CreatedAt
+        };
+    }
+
     private AuthResponseDto GenerateToken(User user)
     {
         var key = _config["Jwt:Key"] ?? throw new InvalidOperationException("JWT key not configured.");
