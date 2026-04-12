@@ -112,4 +112,62 @@ public class ReportService : IReportService
             }).ToList()
         };
     }
+
+    public async Task<FacilityDashboardDto> GetFacilityDashboardAsync(Guid facilityId)
+    {
+        var nearExpiryThreshold = DateTime.UtcNow.AddDays(90);
+
+        var facility = await _db.Facilities.FindAsync(facilityId)
+            ?? throw new InvalidOperationException("Facility not found.");
+
+        var inventories = await _db.Inventories
+            .Include(i => i.Product)
+            .Where(i => i.FacilityId == facilityId)
+            .ToListAsync();
+
+        var pendingOrders = await _db.Orders
+            .CountAsync(o => o.FacilityId == facilityId && o.Status == OrderStatus.Pending);
+
+        var incomingShipments = await _db.Shipments
+            .CountAsync(s => s.FacilityId == facilityId &&
+                (s.Status == ShipmentStatus.Prepared || s.Status == ShipmentStatus.InTransit));
+
+        var categoryBreakdown = inventories
+            .GroupBy(i => i.Product.Category)
+            .Select(g => new CategoryStockDto
+            {
+                Category = g.Key,
+                ItemCount = g.Count(),
+                LowCount = g.Count(i => i.CurrentStock <= i.ReorderLevel)
+            })
+            .OrderByDescending(c => c.ItemCount)
+            .ToList();
+
+        var topLowStock = inventories
+            .Where(i => i.CurrentStock <= i.ReorderLevel)
+            .OrderBy(i => i.CurrentStock)
+            .Take(10)
+            .Select(i => new LowStockAlertItemDto
+            {
+                ProductName = i.Product.Name,
+                CurrentStock = i.CurrentStock,
+                ReorderLevel = i.ReorderLevel,
+                IsOutOfStock = i.CurrentStock == 0
+            })
+            .ToList();
+
+        return new FacilityDashboardDto
+        {
+            FacilityId = facilityId,
+            FacilityName = facility.Name,
+            TotalProducts = inventories.Count,
+            LowStockItems = inventories.Count(i => i.CurrentStock <= i.ReorderLevel),
+            OutOfStockItems = inventories.Count(i => i.CurrentStock == 0),
+            NearExpiryItems = inventories.Count(i => i.ExpiryDate.HasValue && i.ExpiryDate.Value <= nearExpiryThreshold),
+            PendingOrders = pendingOrders,
+            IncomingShipments = incomingShipments,
+            CategoryBreakdown = categoryBreakdown,
+            TopLowStockItems = topLowStock
+        };
+    }
 }

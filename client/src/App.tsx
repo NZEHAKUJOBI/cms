@@ -12,6 +12,7 @@ import Orders from '@/pages/Orders';
 import Shipments from '@/pages/Shipments';
 import Reports from '@/pages/Reports';
 import Users from '@/pages/Users';
+import FacilityUsers from '@/pages/FacilityUsers';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -31,7 +32,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
-              <Route path="/dashboard" element={<ProtectedRoute requireAdmin><Dashboard /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/facilities" element={<Facilities />} />
               <Route path="/products" element={<Products />} />
               <Route path="/inventory" element={<Inventory />} />
@@ -39,6 +40,7 @@ export default function App() {
               <Route path="/shipments" element={<Shipments />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/users" element={<ProtectedRoute requireAdmin><Users /></ProtectedRoute>} />
+              <Route path="/facility-users" element={<ProtectedRoute requirePharmacist><FacilityUsers /></ProtectedRoute>} />
               <Route path="/" element={<Navigate to="/inventory" replace />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

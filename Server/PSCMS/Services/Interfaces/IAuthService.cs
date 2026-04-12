@@ -10,4 +10,7 @@ public interface IAuthService
     Task<List<UserDto>> GetUsersAsync();
     Task<UserDto> CreateUserAsync(CreateUserDto dto);
     Task<UserDto?> UpdateUserAsync(Guid id, UpdateUserDto dto);
+    Task<List<UserDto>> GetFacilityUsersAsync(Guid facilityId);
+    Task<UserDto> CreateFacilityUserAsync(CreateUserDto dto, Guid managerFacilityId);
+    Task<UserDto?> ToggleFacilityUserAsync(Guid userId, Guid managerFacilityId, bool isActive);
 }

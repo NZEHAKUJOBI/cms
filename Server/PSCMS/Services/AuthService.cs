@@ -188,7 +188,91 @@ public class AuthService : IAuthService
             Username = user.Username,
             Email = user.Email,
             Role = user.Role.ToString(),
+            FacilityId = user.FacilityId,
             ExpiresAt = expiresAt
+        };
+    }
+
+    public async Task<List<UserDto>> GetFacilityUsersAsync(Guid facilityId)
+    {
+        return await _db.Users
+            .Include(u => u.Facility)
+            .Where(u => u.FacilityId == facilityId)
+            .OrderBy(u => u.Username)
+            .Select(u => new UserDto
+            {
+                Id = u.Id,
+                Username = u.Username,
+                Email = u.Email,
+                Role = u.Role.ToString(),
+                FacilityId = u.FacilityId,
+                FacilityName = u.Facility != null ? u.Facility.Name : null,
+                IsActive = u.IsActive,
+                CreatedAt = u.CreatedAt
+            })
+            .ToListAsync();
+    }
+
+    public async Task<UserDto> CreateFacilityUserAsync(CreateUserDto dto, Guid managerFacilityId)
+    {
+        if (!Enum.TryParse<UserRole>(dto.Role, out var role) ||
+            role != UserRole.Pharmacist)
+            throw new InvalidOperationException("Only Pharmacist accounts can be created by facility staff.");
+
+        if (await _db.Users.AnyAsync(u => u.Email == dto.Email))
+            throw new InvalidOperationException("Email already registered.");
+
+        if (await _db.Users.AnyAsync(u => u.Username == dto.Username))
+            throw new InvalidOperationException("Username already taken.");
+
+        var user = new User
+        {
+            Username = dto.Username,
+            Email = dto.Email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+            Role = role,
+            FacilityId = managerFacilityId
+        };
+
+        _db.Users.Add(user);
+        await _db.SaveChangesAsync();
+        await _db.Entry(user).Reference(u => u.Facility).LoadAsync();
+
+        return new UserDto
+        {
+            Id = user.Id,
+            Username = user.Username,
+            Email = user.Email,
+            Role = user.Role.ToString(),
+            FacilityId = user.FacilityId,
+            FacilityName = user.Facility?.Name,
+            IsActive = user.IsActive,
+            CreatedAt = user.CreatedAt
+        };
+    }
+
+    public async Task<UserDto?> ToggleFacilityUserAsync(Guid userId, Guid managerFacilityId, bool isActive)
+    {
+        var user = await _db.Users
+            .Include(u => u.Facility)
+            .FirstOrDefaultAsync(u => u.Id == userId && u.FacilityId == managerFacilityId);
+
+        if (user is null) return null;
+
+        user.IsActive = isActive;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return new UserDto
+        {
+            Id = user.Id,
+            Username = user.Username,
+            Email = user.Email,
+            Role = user.Role.ToString(),
+            FacilityId = user.FacilityId,
+            FacilityName = user.Facility?.Name,
+            IsActive = user.IsActive,
+            CreatedAt = user.CreatedAt
         };
     }
 }

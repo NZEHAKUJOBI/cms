@@ -123,13 +123,17 @@ public class InventoryService : IInventoryService
         return (await query.ToListAsync()).Select(ToDto).ToList();
     }
 
-    public async Task<List<InventoryDto>> GetNearExpiryAlertsAsync(int withinDays = 90)
+    public async Task<List<InventoryDto>> GetNearExpiryAlertsAsync(int withinDays = 90, Guid? facilityId = null)
     {
         var threshold = DateTime.UtcNow.AddDays(withinDays);
-        return await _db.Inventories
+        var query = _db.Inventories
             .Include(i => i.Facility)
             .Include(i => i.Product)
-            .Where(i => i.ExpiryDate.HasValue && i.ExpiryDate.Value <= threshold)
+            .Where(i => i.ExpiryDate.HasValue && i.ExpiryDate.Value <= threshold);
+
+        if (facilityId.HasValue) query = query.Where(i => i.FacilityId == facilityId);
+
+        return await query
             .OrderBy(i => i.ExpiryDate)
             .Select(i => ToDto(i))
             .ToListAsync();

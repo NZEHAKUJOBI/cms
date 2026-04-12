@@ -32,6 +32,7 @@ export interface AuthResponseDto {
   username: string;
   email: string;
   role: string;
+  facilityId?: string;
   expiresAt: string;
 }
 
@@ -338,4 +339,30 @@ export interface OrderReportDto {
   rejectedOrders: number;
   fulfilledOrders: number;
   orders: OrderSummaryDto[];
+}
+
+export interface CategoryStockDto {
+  category: string;
+  itemCount: number;
+  lowCount: number;
+}
+
+export interface LowStockAlertItemDto {
+  productName: string;
+  currentStock: number;
+  reorderLevel: number;
+  isOutOfStock: boolean;
+}
+
+export interface FacilityDashboardDto {
+  facilityId: string;
+  facilityName: string;
+  totalProducts: number;
+  lowStockItems: number;
+  outOfStockItems: number;
+  nearExpiryItems: number;
+  pendingOrders: number;
+  incomingShipments: number;
+  categoryBreakdown: CategoryStockDto[];
+  topLowStockItems: LowStockAlertItemDto[];
 }

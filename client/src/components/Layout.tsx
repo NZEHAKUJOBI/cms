@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import InstallPrompt from './InstallPrompt';
+import LowStockBanner from './LowStockBanner';
 import { useAuth } from '@/context/AuthContext';
 import {
   LayoutDashboard,
@@ -17,14 +18,15 @@ import {
 import { useState } from 'react';
 
 const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, adminOnly: true },
-  { to: '/users', label: 'Users', icon: Users, adminOnly: true },
-  { to: '/facilities', label: 'Facilities', icon: Building2 },
-  { to: '/products', label: 'Products', icon: Package },
-  { to: '/inventory', label: 'Inventory', icon: BoxesIcon },
-  { to: '/orders', label: 'Orders', icon: ClipboardList },
-  { to: '/shipments', label: 'Shipments', icon: Truck },
-  { to: '/reports', label: 'Reports', icon: BarChart3 },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'FacilityManager'] },
+  { to: '/users', label: 'Users', icon: Users, roles: ['Admin'] },
+  { to: '/facility-users', label: 'My Users', icon: Users, roles: ['Pharmacist'] },
+  { to: '/facilities', label: 'Facilities', icon: Building2, roles: ['Admin', 'Pharmacist'] },
+  { to: '/products', label: 'Products', icon: Package, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
+  { to: '/inventory', label: 'Inventory', icon: BoxesIcon, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
+  { to: '/orders', label: 'Orders', icon: ClipboardList, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
+  { to: '/shipments', label: 'Shipments', icon: Truck, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
+  { to: '/reports', label: 'Reports', icon: BarChart3, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
 ];
 
 const bottomNavItems = [
@@ -35,7 +37,7 @@ const bottomNavItems = [
 ];
 
 export default function Layout() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -44,7 +46,7 @@ export default function Layout() {
     navigate('/login');
   };
 
-  const visibleItems = navItems.filter((item) => !item.adminOnly || isAdmin);
+  const visibleItems = navItems.filter((item) => !user?.role || item.roles.includes(user.role));
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
     <div className={`flex flex-col h-full ${mobile ? '' : 'w-64'}`}>
@@ -126,6 +128,8 @@ export default function Layout() {
           </button>
           <span className="font-semibold text-blue-900">PSCMS</span>
         </header>
+
+        <LowStockBanner />
 
         <main
           className="flex-1 overflow-y-auto p-4 md:p-6"

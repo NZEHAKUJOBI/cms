@@ -1,5 +1,5 @@
 import api from '@/lib/api';
-import type { ApiResponse, AuthResponseDto, ChangePasswordDto, LoginDto, RegisterDto } from '@/types';
+import type { ApiResponse, AuthResponseDto, ChangePasswordDto, CreateUserDto, LoginDto, RegisterDto, UserDto } from '@/types';
 
 export const authApi = {
   login: (dto: LoginDto) =>
@@ -10,4 +10,14 @@ export const authApi = {
 
   changePassword: (dto: ChangePasswordDto) =>
     api.post<ApiResponse<string>>('/auth/change-password', dto).then((r) => r.data),
+
+  // Facility Manager — users scoped to their facility
+  getMyFacilityUsers: () =>
+    api.get<ApiResponse<UserDto[]>>('/auth/users/my-facility').then((r) => r.data.data),
+
+  createMyFacilityUser: (dto: CreateUserDto) =>
+    api.post<ApiResponse<UserDto>>('/auth/users/my-facility', dto).then((r) => r.data.data),
+
+  toggleFacilityUser: (id: string, isActive: boolean) =>
+    api.patch<ApiResponse<UserDto>>(`/auth/users/my-facility/${id}`, { isActive }).then((r) => r.data.data),
 };

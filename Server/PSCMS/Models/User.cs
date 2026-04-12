@@ -6,7 +6,7 @@ public class User
     public string Username { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
-    public UserRole Role { get; set; } = UserRole.FacilityUser;
+    public UserRole Role { get; set; } = UserRole.Pharmacist;
     public Guid? FacilityId { get; set; }
     public Facility? Facility { get; set; }
     public bool IsActive { get; set; } = true;
@@ -18,6 +18,5 @@ public enum UserRole
 {
     Admin,
     FacilityManager,
-    FacilityUser,
     Pharmacist
 }

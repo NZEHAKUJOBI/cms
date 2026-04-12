@@ -95,4 +95,51 @@ public class AuthController : ControllerBase
             return BadRequest(ApiResponse<string>.Fail(ex.Message));
         }
     }
+
+    /// <summary>List users in the current pharmacist's facility (Pharmacist only).</summary>
+    [HttpGet("users/my-facility")]
+    [Authorize(Roles = "Pharmacist")]
+    public async Task<IActionResult> GetMyFacilityUsers()
+    {
+        var facilityIdStr = User.FindFirstValue("facilityId");
+        if (!Guid.TryParse(facilityIdStr, out var facilityId))
+            return BadRequest(ApiResponse<string>.Fail("No facility assigned to this account."));
+
+        var users = await _authService.GetFacilityUsersAsync(facilityId);
+        return Ok(ApiResponse<List<UserDto>>.Ok(users));
+    }
+
+    /// <summary>Create a user in the current pharmacist's facility (Pharmacist only).</summary>
+    [HttpPost("users/my-facility")]
+    [Authorize(Roles = "Pharmacist")]
+    public async Task<IActionResult> CreateFacilityUser([FromBody] CreateUserDto dto)
+    {
+        var facilityIdStr = User.FindFirstValue("facilityId");
+        if (!Guid.TryParse(facilityIdStr, out var facilityId))
+            return BadRequest(ApiResponse<string>.Fail("No facility assigned to this account."));
+
+        try
+        {
+            var user = await _authService.CreateFacilityUserAsync(dto, facilityId);
+            return CreatedAtAction(nameof(GetMyFacilityUsers), ApiResponse<UserDto>.Ok(user, "User created."));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponse<string>.Fail(ex.Message));
+        }
+    }
+
+    /// <summary>Toggle a user's active status in the pharmacist's facility (Pharmacist only).</summary>
+    [HttpPatch("users/my-facility/{id:guid}")]
+    [Authorize(Roles = "Pharmacist")]
+    public async Task<IActionResult> ToggleFacilityUser(Guid id, [FromBody] ToggleActiveDto dto)
+    {
+        var facilityIdStr = User.FindFirstValue("facilityId");
+        if (!Guid.TryParse(facilityIdStr, out var facilityId))
+            return BadRequest(ApiResponse<string>.Fail("No facility assigned to this account."));
+
+        var user = await _authService.ToggleFacilityUserAsync(id, facilityId, dto.IsActive);
+        if (user is null) return NotFound(ApiResponse<string>.Fail("User not found or not in your facility."));
+        return Ok(ApiResponse<UserDto>.Ok(user, "User updated."));
+    }
 }

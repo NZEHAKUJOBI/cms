@@ -12,8 +12,9 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 function StockReport() {
-  const [facilityId, setFacilityId] = useState('');
-  const { data: facilities } = useQuery({ queryKey: ['facilities-all'], queryFn: () => facilitiesApi.getAll(1, 200) });
+  const { isFacilityManager, facilityId: authFacilityId } = useAuth();
+  const [facilityId, setFacilityId] = useState(authFacilityId ?? '');
+  const { data: facilities } = useQuery({ queryKey: ['facilities-all'], queryFn: () => facilitiesApi.getAll(1, 200), enabled: !isFacilityManager });
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['stock-report', facilityId],
@@ -23,18 +24,20 @@ function StockReport() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <select
-          value={facilityId}
-          onChange={(e) => setFacilityId(e.target.value)}
-          className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-        >
-          <option value="">Select facility…</option>
-          {facilities?.items.filter(f => f.isActive).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-        </select>
-      </div>
+      {!isFacilityManager && (
+        <div className="flex items-center gap-3">
+          <select
+            value={facilityId}
+            onChange={(e) => setFacilityId(e.target.value)}
+            className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          >
+            <option value="">Select facility…</option>
+            {facilities?.items.filter(f => f.isActive).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+        </div>
+      )}
 
-      {!facilityId && <p className="text-gray-400 text-sm">Select a facility to view its stock report.</p>}
+      {!facilityId && !isFacilityManager && <p className="text-gray-400 text-sm">Select a facility to view its stock report.</p>}
       {facilityId && isLoading && <p className="text-gray-400 text-sm">Loading…</p>}
       {facilityId && isError && <p className="text-red-500 text-sm">Failed to load report.</p>}
 
@@ -181,7 +184,7 @@ function OrderReport() {
 }
 
 export default function Reports() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isFacilityManager } = useAuth();
   const [tab, setTab] = useState<'stock' | 'orders'>('stock');
 
   return (
@@ -195,7 +198,7 @@ export default function Reports() {
         >
           Stock Report
         </button>
-        {isAdmin && (
+        {(isAdmin || isFacilityManager) && (
           <button
             onClick={() => setTab('orders')}
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'orders' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
@@ -206,7 +209,7 @@ export default function Reports() {
       </div>
 
       {tab === 'stock' && <StockReport />}
-      {tab === 'orders' && isAdmin && <OrderReport />}
+      {tab === 'orders' && (isAdmin || isFacilityManager) && <OrderReport />}
     </div>
   );
 }

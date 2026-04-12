@@ -142,7 +142,7 @@ function UpdateStatusModal({ shipment, onClose }: { shipment: ShipmentDto; onClo
 }
 
 export default function Shipments() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isPharmacist } = useAuth();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [createModal, setCreateModal] = useState(false);
@@ -157,7 +157,7 @@ export default function Shipments() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Shipments</h1>
-        {isAdmin && (
+        {(isAdmin || isPharmacist) && (
           <button
             onClick={() => setCreateModal(true)}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"

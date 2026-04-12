@@ -12,5 +12,5 @@ public interface IInventoryService
     Task<InventoryDto?> UpdateAsync(Guid id, UpdateInventoryDto dto);
     Task<InventoryDto?> AdjustStockAsync(Guid id, AdjustStockDto dto);
     Task<List<InventoryDto>> GetLowStockAlertsAsync(Guid? facilityId);
-    Task<List<InventoryDto>> GetNearExpiryAlertsAsync(int withinDays = 90);
+    Task<List<InventoryDto>> GetNearExpiryAlertsAsync(int withinDays = 90, Guid? facilityId = null);
 }

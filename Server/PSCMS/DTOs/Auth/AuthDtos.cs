@@ -21,7 +21,13 @@ public class AuthResponseDto
     public string Username { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
+    public Guid? FacilityId { get; set; }
     public DateTime ExpiresAt { get; set; }
+}
+
+public class ToggleActiveDto
+{
+    public bool IsActive { get; set; }
 }
 
 public class ChangePasswordDto

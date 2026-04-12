@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using PSCMS.Common;
 using PSCMS.DTOs.Inventory;
 using PSCMS.Services.Interfaces;
+using System.Security.Claims;
 
 namespace PSCMS.Controllers;
 
@@ -15,7 +16,7 @@ public class InventoryController : ControllerBase
 
     public InventoryController(IInventoryService inventoryService) => _inventoryService = inventoryService;
 
-    /// <summary>Get paginated inventory records, optionally filtered by facility or low-stock.</summary>
+    /// <summary>Get paginated inventory records. FacilityManager auto-scoped to their facility.</summary>
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
@@ -23,6 +24,11 @@ public class InventoryController : ControllerBase
         [FromQuery] Guid? facilityId = null,
         [FromQuery] bool? lowStockOnly = null)
     {
+        if (User.IsInRole("FacilityManager"))
+        {
+            if (Guid.TryParse(User.FindFirstValue("facilityId"), out var fmId))
+                facilityId = fmId;
+        }
         var result = await _inventoryService.GetAllAsync(page, pageSize, facilityId, lowStockOnly);
         return Ok(ApiResponse<PagedResult<InventoryDto>>.Ok(result));
     }
@@ -44,11 +50,18 @@ public class InventoryController : ControllerBase
         return Ok(ApiResponse<List<InventoryDto>>.Ok(items));
     }
 
-    /// <summary>Create an inventory record for a facility-product pair.</summary>
+    /// <summary>Create an inventory record. Admin picks any facility; FacilityManager auto-assigned to theirs.</summary>
     [HttpPost]
     [Authorize(Roles = "Admin,FacilityManager")]
     public async Task<IActionResult> Create([FromBody] CreateInventoryDto dto)
     {
+        if (!User.IsInRole("Admin"))
+        {
+            var facilityIdStr = User.FindFirstValue("facilityId");
+            if (!Guid.TryParse(facilityIdStr, out var fmFacilityId))
+                return BadRequest(ApiResponse<string>.Fail("No facility assigned to your account."));
+            dto.FacilityId = fmFacilityId;
+        }
         try
         {
             var inv = await _inventoryService.CreateAsync(dto);
@@ -87,19 +100,30 @@ public class InventoryController : ControllerBase
         }
     }
 
-    /// <summary>Get all low-stock alerts.</summary>
+    /// <summary>Get all low-stock alerts. FacilityManager auto-scoped.</summary>
     [HttpGet("alerts/low-stock")]
     public async Task<IActionResult> LowStockAlerts([FromQuery] Guid? facilityId = null)
     {
+        if (User.IsInRole("FacilityManager"))
+        {
+            if (Guid.TryParse(User.FindFirstValue("facilityId"), out var fmId))
+                facilityId = fmId;
+        }
         var items = await _inventoryService.GetLowStockAlertsAsync(facilityId);
         return Ok(ApiResponse<List<InventoryDto>>.Ok(items));
     }
 
-    /// <summary>Get products nearing expiry.</summary>
+    /// <summary>Get products nearing expiry. FacilityManager auto-scoped.</summary>
     [HttpGet("alerts/near-expiry")]
     public async Task<IActionResult> NearExpiryAlerts([FromQuery] int withinDays = 90)
     {
-        var items = await _inventoryService.GetNearExpiryAlertsAsync(withinDays);
+        Guid? facilityId = null;
+        if (User.IsInRole("FacilityManager"))
+        {
+            if (Guid.TryParse(User.FindFirstValue("facilityId"), out var fmId))
+                facilityId = fmId;
+        }
+        var items = await _inventoryService.GetNearExpiryAlertsAsync(withinDays, facilityId);
         return Ok(ApiResponse<List<InventoryDto>>.Ok(items));
     }
 }

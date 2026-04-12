@@ -14,7 +14,7 @@ type ModalState =
   | { type: 'adjust'; item: InventoryDto }
   | null;
 
-function CreateEditModal({ item, onClose }: { item?: InventoryDto; onClose: () => void }) {
+function CreateEditModal({ item, onClose, lockedFacilityId }: { item?: InventoryDto; onClose: () => void; lockedFacilityId?: string }) {
   const qc = useQueryClient();
   const { register, handleSubmit } = useForm<CreateInventoryDto & UpdateInventoryDto>({
     defaultValues: item
@@ -26,10 +26,10 @@ function CreateEditModal({ item, onClose }: { item?: InventoryDto; onClose: () =
           batchNumber: item.batchNumber ?? '',
           expiryDate: item.expiryDate ? item.expiryDate.substring(0, 10) : '',
         }
-      : undefined,
+      : lockedFacilityId ? { facilityId: lockedFacilityId } : undefined,
   });
 
-  const { data: facilities } = useQuery({ queryKey: ['facilities-all'], queryFn: () => facilitiesApi.getAll(1, 200) });
+  const { data: facilities } = useQuery({ queryKey: ['facilities-all'], queryFn: () => facilitiesApi.getAll(1, 200), enabled: !lockedFacilityId || !!item });
   const { data: products } = useQuery({ queryKey: ['products-all'], queryFn: () => productsApi.getAll(1, 200) });
 
   const createMut = useMutation({
@@ -60,10 +60,16 @@ function CreateEditModal({ item, onClose }: { item?: InventoryDto; onClose: () =
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Facility *</label>
-                <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" {...register('facilityId', { required: true })}>
-                  <option value="">Select…</option>
-                  {facilities?.items.filter(f => f.isActive).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                </select>
+                {lockedFacilityId ? (
+                  <select disabled className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600 cursor-not-allowed" {...register('facilityId')}>
+                    {facilities?.items.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                  </select>
+                ) : (
+                  <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" {...register('facilityId', { required: true })}>
+                    <option value="">Select…</option>
+                    {facilities?.items.filter(f => f.isActive).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                  </select>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Product *</label>
@@ -153,8 +159,8 @@ function AdjustModal({ item, onClose }: { item: InventoryDto; onClose: () => voi
 }
 
 export default function Inventory() {
-  const { isAdmin, user } = useAuth();
-  const canManage = isAdmin || ['FacilityManager', 'Pharmacist'].includes(user?.role ?? '');
+  const { isAdmin, isFacilityManager, facilityId: authFacilityId, user } = useAuth();
+  const canAdjust = isAdmin || ['FacilityManager', 'Pharmacist'].includes(user?.role ?? '');
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState<'all' | 'low' | 'expiry'>('all');
   const [modal, setModal] = useState<ModalState>(null);
@@ -174,7 +180,7 @@ export default function Inventory() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
-        {canManage && (
+        {(isAdmin || isFacilityManager) && (
           <button
             onClick={() => setModal({ type: 'create' })}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
@@ -252,7 +258,7 @@ export default function Inventory() {
                       </div>
                     )}
                   </div>
-                  {canManage && (
+                  {canAdjust && (
                     <div className="flex gap-2">
                       <button
                         onClick={() => setModal({ type: 'adjust', item: inv })}
@@ -284,7 +290,7 @@ export default function Inventory() {
                     <th className="px-5 py-3 text-left">Batch</th>
                     <th className="px-5 py-3 text-left">Expiry</th>
                     <th className="px-5 py-3 text-center">Status</th>
-                    {canManage && <th className="px-5 py-3" />}
+                    {canAdjust && <th className="px-5 py-3" />}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -317,7 +323,7 @@ export default function Inventory() {
                           )}
                         </div>
                       </td>
-                      {canManage && (
+                      {canAdjust && (
                         <td className="px-5 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
                             <button
@@ -358,7 +364,7 @@ export default function Inventory() {
         )}
       </div>
 
-      {modal?.type === 'create' && <CreateEditModal onClose={() => setModal(null)} />}
+      {modal?.type === 'create' && <CreateEditModal onClose={() => setModal(null)} lockedFacilityId={isFacilityManager ? (authFacilityId ?? undefined) : undefined} />}
       {modal?.type === 'edit' && <CreateEditModal item={modal.item} onClose={() => setModal(null)} />}
       {modal?.type === 'adjust' && <AdjustModal item={modal.item} onClose={() => setModal(null)} />}
     </div>

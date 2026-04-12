@@ -63,3 +63,32 @@ public class OrderSummaryDto
     public DateTime OrderDate { get; set; }
     public int TotalItems { get; set; }
 }
+
+public class FacilityDashboardDto
+{
+    public Guid FacilityId { get; set; }
+    public string FacilityName { get; set; } = string.Empty;
+    public int TotalProducts { get; set; }
+    public int LowStockItems { get; set; }
+    public int OutOfStockItems { get; set; }
+    public int NearExpiryItems { get; set; }
+    public int PendingOrders { get; set; }
+    public int IncomingShipments { get; set; }
+    public List<CategoryStockDto> CategoryBreakdown { get; set; } = new();
+    public List<LowStockAlertItemDto> TopLowStockItems { get; set; } = new();
+}
+
+public class CategoryStockDto
+{
+    public string Category { get; set; } = string.Empty;
+    public int ItemCount { get; set; }
+    public int LowCount { get; set; }
+}
+
+public class LowStockAlertItemDto
+{
+    public string ProductName { get; set; } = string.Empty;
+    public int CurrentStock { get; set; }
+    public int ReorderLevel { get; set; }
+    public bool IsOutOfStock { get; set; }
+}

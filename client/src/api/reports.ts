@@ -1,9 +1,12 @@
 import api from '@/lib/api';
-import type { ApiResponse, DashboardSummaryDto, OrderReportDto, StockReportDto } from '@/types';
+import type { ApiResponse, DashboardSummaryDto, FacilityDashboardDto, OrderReportDto, StockReportDto } from '@/types';
 
 export const reportsApi = {
   getDashboard: () =>
     api.get<ApiResponse<DashboardSummaryDto>>('/reports/dashboard').then((r) => r.data.data),
+
+  getFacilityDashboard: () =>
+    api.get<ApiResponse<FacilityDashboardDto>>('/reports/facility-dashboard').then((r) => r.data.data),
 
   getStockReport: (facilityId: string) =>
     api.get<ApiResponse<StockReportDto>>(`/reports/stock/${facilityId}`).then((r) => r.data.data),

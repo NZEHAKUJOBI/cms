@@ -16,7 +16,7 @@ public class ShipmentsController : ControllerBase
 
     public ShipmentsController(IShipmentService shipmentService) => _shipmentService = shipmentService;
 
-    /// <summary>Get paginated shipments, optionally filtered by facility or status.</summary>
+    /// <summary>Get paginated shipments. FacilityManager auto-scoped to their facility.</summary>
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
@@ -24,6 +24,11 @@ public class ShipmentsController : ControllerBase
         [FromQuery] Guid? facilityId = null,
         [FromQuery] string? status = null)
     {
+        if (User.IsInRole("FacilityManager"))
+        {
+            if (Guid.TryParse(User.FindFirstValue("facilityId"), out var fmId))
+                facilityId = fmId;
+        }
         var result = await _shipmentService.GetAllAsync(page, pageSize, facilityId, status);
         return Ok(ApiResponse<PagedResult<ShipmentDto>>.Ok(result));
     }
@@ -37,9 +42,9 @@ public class ShipmentsController : ControllerBase
         return Ok(ApiResponse<ShipmentDto>.Ok(shipment));
     }
 
-    /// <summary>Create a new shipment dispatch (Admin only).</summary>
+    /// <summary>Create a new shipment dispatch (Admin or Pharmacist).</summary>
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Pharmacist")]
     public async Task<IActionResult> Create([FromBody] CreateShipmentDto dto)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -54,7 +59,7 @@ public class ShipmentsController : ControllerBase
         }
     }
 
-    /// <summary>Update shipment status (e.g., InTransit, Delivered, Received).</summary>
+    /// <summary>Update shipment status.</summary>
     [HttpPatch("{id:guid}/status")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateShipmentStatusDto dto)
     {
