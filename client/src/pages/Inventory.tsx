@@ -6,9 +6,10 @@ import { facilitiesApi } from '@/api/facilities';
 import { productsApi } from '@/api/products';
 import { useAuth } from '@/context/AuthContext';
 import type { AdjustStockDto, CreateInventoryDto, InventoryDto, SetStockDto, StockLedgerDto, UpdateInventoryDto, WeeklySnapshotDto } from '@/types';
-import { Plus, AlertTriangle, Clock, X, ArrowUpDown, Pencil, History } from 'lucide-react';
+import { Plus, AlertTriangle, Clock, X, ArrowUpDown, Pencil, History, BarChart2 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  BarChart, Bar, Legend, ReferenceLine,
 } from 'recharts';
 
 type ModalState =
@@ -334,11 +335,162 @@ function StockHistoryModal({ item, onClose }: { item: InventoryDto; onClose: () 
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Stock Graph Tab (week-on-week trends)
+// ─────────────────────────────────────────────────────────────────────────────
+function StockGraphTab({ facilityId: lockedFacilityId }: { facilityId?: string }) {
+  const { data: allInventory } = useQuery({
+    queryKey: ['inventory-graph', lockedFacilityId],
+    queryFn: () =>
+      inventoryApi.getAll(1, 200, lockedFacilityId).then((r) => r.items),
+  });
+
+  const items = allInventory ?? [];
+  const [selectedId, setSelectedId] = useState<string>('');
+
+  // Bar chart data — current stock vs reorder level, first 30 items
+  const barData = items.slice(0, 30).map((inv) => ({
+    name: inv.productName.split('(')[0].trim().substring(0, 18),
+    stock: inv.currentStock,
+    reorder: inv.reorderLevel,
+  }));
+
+  // weekly line trend for selected item
+  const { data: snapshots = [] } = useQuery<WeeklySnapshotDto[]>({
+    queryKey: ['weekly-snapshots', selectedId],
+    queryFn: () => inventoryApi.getWeeklySnapshots(selectedId, 16),
+    enabled: !!selectedId,
+  });
+
+  const lineData = snapshots.map((s) => ({
+    week: new Date(s.weekStartDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+    stock: s.stockOnHand,
+  }));
+
+  const selected = items.find((i) => i.id === selectedId);
+
+  return (
+    <div className="space-y-6">
+      {/* Bar chart — snapshot of current stock */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <h3 className="text-sm font-semibold text-gray-700 mb-1">Current Stock Levels</h3>
+        <p className="text-xs text-gray-400 mb-4">Stock on hand vs reorder level (showing up to 30 items)</p>
+        {items.length === 0 ? (
+          <div className="h-56 flex items-center justify-center text-sm text-gray-400">No inventory data.</div>
+        ) : (
+          <div className="h-56 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={barData} margin={{ top: 4, right: 8, left: 0, bottom: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 9, fill: '#9ca3af' }}
+                  angle={-45}
+                  textAnchor="end"
+                  axisLine={false}
+                  tickLine={false}
+                  interval={0}
+                />
+                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={36} />
+                <Tooltip
+                  contentStyle={{ borderRadius: '10px', border: '1px solid #e5e7eb', fontSize: 12 }}
+                  formatter={(v, name) => [v, name === 'stock' ? 'Stock on Hand' : 'Reorder Level']}
+                />
+                <Legend
+                  iconType="circle"
+                  iconSize={8}
+                  wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
+                  formatter={(v) => v === 'stock' ? 'Stock on Hand' : 'Reorder Level'}
+                />
+                <Bar dataKey="stock" fill="#6366f1" radius={[3, 3, 0, 0]} maxBarSize={24} />
+                <Bar dataKey="reorder" fill="#fbbf24" radius={[3, 3, 0, 0]} maxBarSize={24} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      {/* Weekly trend for selected item */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700">Week-on-Week Trend</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Select a product to view its 16-week stock history</p>
+          </div>
+          <select
+            value={selectedId}
+            onChange={(e) => setSelectedId(e.target.value)}
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white min-w-[200px] max-w-sm"
+          >
+            <option value="">— Select product —</option>
+            {items.map((inv) => (
+              <option key={inv.id} value={inv.id}>
+                {inv.productName} {inv.facilityName ? `(${inv.facilityName})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {!selectedId && (
+          <div className="h-48 flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-xl">
+            Select a product above to view its stock trend.
+          </div>
+        )}
+
+        {selectedId && lineData.length === 0 && (
+          <div className="h-48 flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-xl">
+            No weekly data yet for this item — records update on each stock change.
+          </div>
+        )}
+
+        {selectedId && lineData.length > 0 && (
+          <>
+            {selected && (
+              <div className="flex items-center gap-4 mb-3 text-xs text-gray-500">
+                <span className="font-medium text-gray-700">{selected.productName}</span>
+                <span>{selected.facilityName}</span>
+                <span className={`px-2 py-0.5 rounded-full font-medium ${selected.isLowStock ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                  Current: {selected.currentStock} {selected.productUnit}
+                </span>
+              </div>
+            )}
+            <div className="h-52 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={lineData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                  <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={40} />
+                  {selected && (
+                    <ReferenceLine y={selected.reorderLevel} stroke="#fbbf24" strokeDasharray="4 3" label={{ value: 'Reorder', fontSize: 10, fill: '#f59e0b', position: 'right' }} />
+                  )}
+                  <Tooltip
+                    contentStyle={{ borderRadius: '10px', border: '1px solid #e5e7eb', fontSize: 12 }}
+                    formatter={(v) => [`${v} ${selected?.productUnit ?? ''}`, 'Stock on Hand']}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="stock"
+                    stroke="#6366f1"
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: '#6366f1', strokeWidth: 0 }}
+                    activeDot={{ r: 6 }}
+                    name="Stock on Hand"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Inventory() {
   const { isAdmin, isFacilityManager, facilityId: authFacilityId, user } = useAuth();
   const canAdjust = isAdmin || ['FacilityManager', 'Pharmacist'].includes(user?.role ?? '');
   const [page, setPage] = useState(1);
-  const [tab, setTab] = useState<'all' | 'low' | 'expiry'>('all');
+  const [tab, setTab] = useState<'all' | 'low' | 'expiry' | 'graph'>('all');
   const [modal, setModal] = useState<ModalState>(null);
 
   const { data, isLoading } = useQuery({
@@ -346,6 +498,7 @@ export default function Inventory() {
     queryFn: () => {
       if (tab === 'low') return inventoryApi.getLowStockAlerts().then(items => ({ items, totalCount: items.length, page: 1, pageSize: items.length, totalPages: 1 }));
       if (tab === 'expiry') return inventoryApi.getNearExpiryAlerts().then(items => ({ items, totalCount: items.length, page: 1, pageSize: items.length, totalPages: 1 }));
+      if (tab === 'graph') return Promise.resolve({ items: [], totalCount: 0, page: 1, pageSize: 0, totalPages: 0 });
       return inventoryApi.getAll(page, 20);
     },
   });
@@ -369,18 +522,24 @@ export default function Inventory() {
         )}
       </div>
 
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
-        {([['all', 'All'], ['low', 'Low Stock'], ['expiry', 'Near Expiry']] as const).map(([key, label]) => (
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit flex-wrap">
+        {([['all', 'All'], ['low', 'Low Stock'], ['expiry', 'Near Expiry'], ['graph', 'Stock Graph']] as const).map(([key, label]) => (
           <button
             key={key}
             onClick={() => { setTab(key); setPage(1); }}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${tab === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
+            {key === 'graph' && <BarChart2 size={13} />}
             {label}
           </button>
         ))}
       </div>
 
+      {tab === 'graph' && (
+        <StockGraphTab facilityId={isFacilityManager ? (authFacilityId ?? undefined) : undefined} />
+      )}
+
+      {tab !== 'graph' && (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-48 text-gray-400">Loading…</div>
@@ -555,6 +714,7 @@ export default function Inventory() {
           </>
         )}
       </div>
+      )}
 
       {modal?.type === 'create' && <CreateEditModal onClose={() => setModal(null)} lockedFacilityId={isFacilityManager ? (authFacilityId ?? undefined) : undefined} />}
       {modal?.type === 'edit' && <CreateEditModal item={modal.item} onClose={() => setModal(null)} />}

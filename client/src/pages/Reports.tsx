@@ -2,7 +2,19 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { reportsApi } from '@/api/reports';
 import { facilitiesApi } from '@/api/facilities';
+import { usersApi } from '@/api/users';
 import { useAuth } from '@/context/AuthContext';
+import { Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
+
+function downloadExcel(sheets: { name: string; rows: Record<string, unknown>[] }[], filename: string) {
+  const wb = XLSX.utils.book_new();
+  for (const sheet of sheets) {
+    const ws = XLSX.utils.json_to_sheet(sheet.rows);
+    XLSX.utils.book_append_sheet(wb, ws, sheet.name);
+  }
+  XLSX.writeFile(wb, filename);
+}
 
 const STATUS_COLORS: Record<string, string> = {
   Adequate: 'text-green-600',
@@ -22,20 +34,48 @@ function StockReport() {
     enabled: !!facilityId,
   });
 
+  const handleExport = () => {
+    if (!data) return;
+    downloadExcel([{
+      name: 'Stock Report',
+      rows: data.items.map((i) => ({
+        'Product Name': i.productName,
+        'Generic Name': i.genericName,
+        'Category': i.category,
+        'Unit': i.unit,
+        'Current Stock': i.currentStock,
+        'Reorder Level': i.reorderLevel,
+        'Min Stock Level': i.minimumStockLevel,
+        'Status': i.stockStatus,
+        'Expiry Date': i.expiryDate ? new Date(i.expiryDate).toLocaleDateString() : '',
+      })),
+    }], `stock-report-${data.facilityName}-${new Date().toISOString().substring(0, 10)}.xlsx`);
+  };
+
   return (
     <div className="space-y-4">
-      {!isFacilityManager && (
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          <select
-            value={facilityId}
-            onChange={(e) => setFacilityId(e.target.value)}
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white"
-          >
-            <option value="">Select facility…</option>
-            {facilities?.items.filter(f => f.isActive).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-          </select>
+          {!isFacilityManager && (
+            <select
+              value={facilityId}
+              onChange={(e) => setFacilityId(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white"
+            >
+              <option value="">Select facility…</option>
+              {facilities?.items.filter(f => f.isActive).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          )}
         </div>
-      )}
+        {data && (
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
+          >
+            <Download size={14} /> Export Excel
+          </button>
+        )}
+      </div>
 
       {!facilityId && !isFacilityManager && <p className="text-gray-400 text-sm">Select a facility to view its stock report.</p>}
       {facilityId && isLoading && <p className="text-gray-400 text-sm">Loading…</p>}
@@ -108,6 +148,20 @@ function OrderReport() {
     Cancelled: 'bg-gray-100 text-gray-500',
   };
 
+  const handleExport = () => {
+    if (!data) return;
+    downloadExcel([{
+      name: 'Order Report',
+      rows: data.orders.map((o) => ({
+        'Order #': o.orderNumber,
+        'Facility': o.facilityName,
+        'Status': o.status,
+        'Order Date': new Date(o.orderDate).toLocaleDateString(),
+        'Total Items': o.totalItems,
+      })),
+    }], `order-report-${from}-to-${to}.xlsx`);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
@@ -125,6 +179,14 @@ function OrderReport() {
         >
           Generate
         </button>
+        {data && (
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
+          >
+            <Download size={14} /> Export Excel
+          </button>
+        )}
       </div>
 
       {submitted && isLoading && <p className="text-gray-400 text-sm">Loading…</p>}
@@ -183,9 +245,100 @@ function OrderReport() {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Users Report (Admin only)
+// ─────────────────────────────────────────────────────────────────────────────
+function UsersReport() {
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ['users-report'],
+    queryFn: () => usersApi.getAll(),
+  });
+
+  const handleExport = () => {
+    downloadExcel([{
+      name: 'Users',
+      rows: users.map((u) => ({
+        'Username': u.username,
+        'Email': u.email,
+        'Role': u.role,
+        'Facility': u.facilityName ?? '',
+        'Active': u.isActive ? 'Yes' : 'No',
+        'Created At': new Date(u.createdAt).toLocaleDateString(),
+      })),
+    }], `users-report-${new Date().toISOString().substring(0, 10)}.xlsx`);
+  };
+
+  const ROLE_COLORS: Record<string, string> = {
+    Admin: 'bg-purple-100 text-purple-700',
+    FacilityManager: 'bg-blue-100 text-blue-700',
+    Pharmacist: 'bg-teal-100 text-teal-700',
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500">{users.length} registered users</p>
+        {users.length > 0 && (
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
+          >
+            <Download size={14} /> Export Excel
+          </button>
+        )}
+      </div>
+
+      {isLoading && <p className="text-gray-400 text-sm">Loading…</p>}
+
+      {users.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50/80 text-gray-500 text-xs uppercase tracking-wider">
+                  <th className="px-5 py-3.5 text-left font-semibold">Username</th>
+                  <th className="px-5 py-3.5 text-left font-semibold">Email</th>
+                  <th className="px-5 py-3.5 text-center font-semibold">Role</th>
+                  <th className="px-5 py-3.5 text-left font-semibold">Facility</th>
+                  <th className="px-5 py-3.5 text-center font-semibold">Status</th>
+                  <th className="px-5 py-3.5 text-left font-semibold">Created</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {users.map((u) => (
+                  <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-5 py-3.5 font-medium text-gray-900">{u.username}</td>
+                    <td className="px-5 py-3.5 text-gray-600">{u.email}</td>
+                    <td className="px-5 py-3.5 text-center">
+                      <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${ROLE_COLORS[u.role] ?? 'bg-gray-100 text-gray-500'}`}>{u.role}</span>
+                    </td>
+                    <td className="px-5 py-3.5 text-gray-600">{u.facilityName ?? '—'}</td>
+                    <td className="px-5 py-3.5 text-center">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {u.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-gray-500 text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Reports() {
   const { isAdmin, isFacilityManager } = useAuth();
-  const [tab, setTab] = useState<'stock' | 'orders'>('stock');
+  const [tab, setTab] = useState<'stock' | 'orders' | 'users'>('stock');
+
+  const tabs = [
+    { key: 'stock', label: 'Stock Report', show: true },
+    { key: 'orders', label: 'Order Report', show: isAdmin || isFacilityManager },
+    { key: 'users', label: 'Users Report', show: isAdmin },
+  ] as const;
 
   return (
     <div className="space-y-5">
@@ -194,25 +347,21 @@ export default function Reports() {
         <p className="text-sm text-gray-500 mt-0.5 hidden sm:block">Analytics and stock insights</p>
       </div>
 
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
-        <button
-          onClick={() => setTab('stock')}
-          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === 'stock' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          Stock Report
-        </button>
-        {(isAdmin || isFacilityManager) && (
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit flex-wrap">
+        {tabs.filter((t) => t.show).map((t) => (
           <button
-            onClick={() => setTab('orders')}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === 'orders' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === t.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            Order Report
+            {t.label}
           </button>
-        )}
+        ))}
       </div>
 
       {tab === 'stock' && <StockReport />}
       {tab === 'orders' && (isAdmin || isFacilityManager) && <OrderReport />}
+      {tab === 'users' && isAdmin && <UsersReport />}
     </div>
   );
 }
