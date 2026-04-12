@@ -5,7 +5,10 @@ import type {
   CreateInventoryDto,
   InventoryDto,
   PagedResult,
+  SetStockDto,
+  StockLedgerDto,
   UpdateInventoryDto,
+  WeeklySnapshotDto,
 } from '@/types';
 
 export const inventoryApi = {
@@ -31,6 +34,9 @@ export const inventoryApi = {
   adjustStock: (id: string, dto: AdjustStockDto) =>
     api.post<ApiResponse<InventoryDto>>(`/inventory/${id}/adjust`, dto).then((r) => r.data.data),
 
+  setStock: (id: string, dto: SetStockDto) =>
+    api.post<ApiResponse<InventoryDto>>(`/inventory/${id}/set-stock`, dto).then((r) => r.data.data),
+
   getLowStockAlerts: (facilityId?: string) =>
     api
       .get<ApiResponse<InventoryDto[]>>('/inventory/alerts/low-stock', { params: { facilityId } })
@@ -39,5 +45,15 @@ export const inventoryApi = {
   getNearExpiryAlerts: (withinDays = 90) =>
     api
       .get<ApiResponse<InventoryDto[]>>('/inventory/alerts/near-expiry', { params: { withinDays } })
+      .then((r) => r.data.data),
+
+  getStockHistory: (id: string, days = 90) =>
+    api
+      .get<ApiResponse<StockLedgerDto[]>>(`/inventory/${id}/history`, { params: { days } })
+      .then((r) => r.data.data),
+
+  getWeeklySnapshots: (id: string, weeks = 12) =>
+    api
+      .get<ApiResponse<WeeklySnapshotDto[]>>(`/inventory/${id}/weekly-snapshots`, { params: { weeks } })
       .then((r) => r.data.data),
 };

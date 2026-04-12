@@ -181,6 +181,28 @@ export interface AdjustStockDto {
   reason: string;
 }
 
+export interface SetStockDto {
+  stockOnHand: number;
+  reason?: string;
+}
+
+export interface StockLedgerDto {
+  id: string;
+  previousStock: number;
+  newStock: number;
+  changeAmount: number;
+  changeType: string;
+  reason?: string;
+  changedAt: string;
+}
+
+export interface WeeklySnapshotDto {
+  id: string;
+  stockOnHand: number;
+  weekStartDate: string;
+  recordedAt: string;
+}
+
 // ─── Order ────────────────────────────────────────────────────────────────────
 export interface OrderItemDto {
   id: string;

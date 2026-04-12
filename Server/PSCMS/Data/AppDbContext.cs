@@ -15,6 +15,8 @@ public class AppDbContext : DbContext
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<Shipment> Shipments => Set<Shipment>();
     public DbSet<ShipmentItem> ShipmentItems => Set<ShipmentItem>();
+    public DbSet<StockLedger> StockLedger => Set<StockLedger>();
+    public DbSet<WeeklyStockSnapshot> WeeklyStockSnapshots => Set<WeeklyStockSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -78,6 +80,20 @@ public class AppDbContext : DbContext
         {
             e.HasOne(si => si.Shipment).WithMany(s => s.ShipmentItems).HasForeignKey(si => si.ShipmentId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(si => si.Product).WithMany(p => p.ShipmentItems).HasForeignKey(si => si.ProductId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // StockLedger
+        modelBuilder.Entity<StockLedger>(e =>
+        {
+            e.HasIndex(sl => new { sl.InventoryId, sl.ChangedAt });
+            e.HasOne(sl => sl.Inventory).WithMany().HasForeignKey(sl => sl.InventoryId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // WeeklyStockSnapshot: unique per inventory + week
+        modelBuilder.Entity<WeeklyStockSnapshot>(e =>
+        {
+            e.HasIndex(ws => new { ws.InventoryId, ws.WeekStartDate }).IsUnique();
+            e.HasOne(ws => ws.Inventory).WithMany().HasForeignKey(ws => ws.InventoryId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // Seed admin user

@@ -64,7 +64,8 @@ public class InventoryController : ControllerBase
         }
         try
         {
-            var inv = await _inventoryService.CreateAsync(dto);
+            var uid = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var u) ? u : (Guid?)null;
+            var inv = await _inventoryService.CreateAsync(dto, uid);
             return CreatedAtAction(nameof(GetById), new { id = inv.Id }, ApiResponse<InventoryDto>.Ok(inv, "Inventory created."));
         }
         catch (InvalidOperationException ex)
@@ -90,7 +91,8 @@ public class InventoryController : ControllerBase
     {
         try
         {
-            var inv = await _inventoryService.AdjustStockAsync(id, dto);
+            var uid = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var u) ? u : (Guid?)null;
+            var inv = await _inventoryService.AdjustStockAsync(id, dto, uid);
             if (inv is null) return NotFound(ApiResponse<string>.Fail("Inventory record not found."));
             return Ok(ApiResponse<InventoryDto>.Ok(inv, "Stock adjusted."));
         }
@@ -98,6 +100,33 @@ public class InventoryController : ControllerBase
         {
             return BadRequest(ApiResponse<string>.Fail(ex.Message));
         }
+    }
+
+    /// <summary>Set absolute stock level (physical count). FacilityManager restricted to their facility.</summary>
+    [HttpPost("{id:guid}/set-stock")]
+    [Authorize(Roles = "Admin,FacilityManager")]
+    public async Task<IActionResult> SetStock(Guid id, [FromBody] SetStockDto dto)
+    {
+        var uid = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var u) ? u : (Guid?)null;
+        var inv = await _inventoryService.SetStockAsync(id, dto, uid);
+        if (inv is null) return NotFound(ApiResponse<string>.Fail("Inventory record not found."));
+        return Ok(ApiResponse<InventoryDto>.Ok(inv, "Stock updated."));
+    }
+
+    /// <summary>Get change log for an inventory record.</summary>
+    [HttpGet("{id:guid}/history")]
+    public async Task<IActionResult> GetHistory(Guid id, [FromQuery] int days = 90)
+    {
+        var entries = await _inventoryService.GetStockHistoryAsync(id, days);
+        return Ok(ApiResponse<List<StockLedgerDto>>.Ok(entries));
+    }
+
+    /// <summary>Get week-on-week stock snapshots for an inventory record.</summary>
+    [HttpGet("{id:guid}/weekly-snapshots")]
+    public async Task<IActionResult> GetWeeklySnapshots(Guid id, [FromQuery] int weeks = 12)
+    {
+        var snapshots = await _inventoryService.GetWeeklySnapshotsAsync(id, weeks);
+        return Ok(ApiResponse<List<WeeklySnapshotDto>>.Ok(snapshots));
     }
 
     /// <summary>Get all low-stock alerts. FacilityManager auto-scoped.</summary>

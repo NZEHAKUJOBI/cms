@@ -5,13 +5,17 @@ import { inventoryApi } from '@/api/inventory';
 import { facilitiesApi } from '@/api/facilities';
 import { productsApi } from '@/api/products';
 import { useAuth } from '@/context/AuthContext';
-import type { AdjustStockDto, CreateInventoryDto, InventoryDto, UpdateInventoryDto } from '@/types';
-import { Plus, AlertTriangle, Clock, X, ArrowUpDown, Pencil } from 'lucide-react';
+import type { AdjustStockDto, CreateInventoryDto, InventoryDto, SetStockDto, StockLedgerDto, UpdateInventoryDto, WeeklySnapshotDto } from '@/types';
+import { Plus, AlertTriangle, Clock, X, ArrowUpDown, Pencil, History } from 'lucide-react';
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+} from 'recharts';
 
 type ModalState =
   | { type: 'create' }
   | { type: 'edit'; item: InventoryDto }
   | { type: 'adjust'; item: InventoryDto }
+  | { type: 'history'; item: InventoryDto }
   | null;
 
 function CreateEditModal({ item, onClose, lockedFacilityId }: { item?: InventoryDto; onClose: () => void; lockedFacilityId?: string }) {
@@ -117,47 +121,214 @@ function CreateEditModal({ item, onClose, lockedFacilityId }: { item?: Inventory
 
 function AdjustModal({ item, onClose }: { item: InventoryDto; onClose: () => void }) {
   const qc = useQueryClient();
-  const { register, handleSubmit } = useForm<AdjustStockDto>({ defaultValues: { adjustmentType: 'Add', quantity: 0, reason: '' } });
+  const { register, handleSubmit, watch } = useForm<AdjustStockDto & { isSet?: boolean }>({
+    defaultValues: { adjustmentType: 'Add', quantity: 0, reason: '' },
+  });
+  const [mode, setMode] = useState<'adjust' | 'set'>('adjust');
+  const { register: regSet, handleSubmit: handleSet } = useForm<SetStockDto>({
+    defaultValues: { stockOnHand: item.currentStock, reason: '' },
+  });
 
-  const mut = useMutation({
+  const adjustMut = useMutation({
     mutationFn: (dto: AdjustStockDto) => inventoryApi.adjustStock(item.id, dto),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['inventory'] }); onClose(); },
   });
+  const setMut = useMutation({
+    mutationFn: (dto: SetStockDto) => inventoryApi.setStock(item.id, dto),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['inventory'] }); onClose(); },
+  });
+
+  const isPending = adjustMut.isPending || setMut.isPending;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded-xl w-full max-w-sm shadow-xl">
         <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="font-semibold text-gray-900">Adjust Stock</h2>
+          <h2 className="font-semibold text-gray-900">Update Stock</h2>
           <button onClick={onClose}><X size={18} /></button>
         </div>
-        <form onSubmit={handleSubmit((d) => mut.mutate(d))} className="p-6 space-y-4">
-          <p className="text-sm text-gray-600">
-            <span className="font-medium">{item.productName}</span> @ {item.facilityName}
-            <br />Current stock: <span className="font-semibold">{item.currentStock} {item.productUnit}</span>
-          </p>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Adjustment Type *</label>
-            <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" {...register('adjustmentType', { required: true })}>
-              <option value="Add">Add Stock</option>
-              <option value="Subtract">Subtract Stock</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
-            <input type="number" min={1} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" {...register('quantity', { required: true, valueAsNumber: true, min: 1 })} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Reason *</label>
-            <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" {...register('reason', { required: true })} />
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
-            <button type="submit" disabled={mut.isPending} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-              {mut.isPending ? 'Saving…' : 'Apply'}
+
+        {/* Mode toggle */}
+        <div className="flex gap-1 bg-gray-100 p-1 mx-6 mt-4 rounded-xl">
+          {(['adjust', 'set'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${mode === m ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              {m === 'adjust' ? 'Add / Subtract' : 'Set Physical Count'}
             </button>
+          ))}
+        </div>
+
+        <p className="text-sm text-gray-600 px-6 pt-3">
+          <span className="font-medium">{item.productName}</span> @ {item.facilityName}
+          <br />Current stock: <span className="font-semibold">{item.currentStock} {item.productUnit}</span>
+        </p>
+
+        {mode === 'adjust' ? (
+          <form onSubmit={handleSubmit((d) => adjustMut.mutate(d))} className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Adjustment Type *</label>
+              <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" {...register('adjustmentType', { required: true })}>
+                <option value="Add">Add Stock</option>
+                <option value="Subtract">Subtract Stock</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {watch('adjustmentType') === 'Add' ? 'Units to Add *' : 'Units to Remove *'}
+              </label>
+              <input type="number" min={1} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" {...register('quantity', { required: true, valueAsNumber: true, min: 1 })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reason *</label>
+              <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" {...register('reason', { required: true })} />
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
+              <button type="submit" disabled={isPending} className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                {isPending ? 'Saving…' : 'Apply'}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleSet((d) => setMut.mutate(d))} className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">New Stock on Hand *</label>
+              <input type="number" min={0} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" {...regSet('stockOnHand', { required: true, valueAsNumber: true, min: 0 })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reason (optional)</label>
+              <input placeholder="Physical count" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" {...regSet('reason')} />
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
+              <button type="submit" disabled={isPending} className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                {isPending ? 'Saving…' : 'Save Count'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stock History Modal
+// ─────────────────────────────────────────────────────────────────────────────
+const CHANGE_COLOR: Record<string, string> = {
+  Add: 'bg-green-100 text-green-700',
+  Subtract: 'bg-red-100 text-red-700',
+  Set: 'bg-blue-100 text-blue-700',
+  Initial: 'bg-gray-100 text-gray-600',
+};
+
+function StockHistoryModal({ item, onClose }: { item: InventoryDto; onClose: () => void }) {
+  const { data: snapshots = [] } = useQuery<WeeklySnapshotDto[]>({
+    queryKey: ['weekly-snapshots', item.id],
+    queryFn: () => inventoryApi.getWeeklySnapshots(item.id, 16),
+  });
+  const { data: ledger = [] } = useQuery<StockLedgerDto[]>({
+    queryKey: ['stock-history', item.id],
+    queryFn: () => inventoryApi.getStockHistory(item.id, 90),
+  });
+
+  const chartData = snapshots.map((s) => ({
+    week: new Date(s.weekStartDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+    stock: s.stockOnHand,
+  }));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
+          <div>
+            <h2 className="font-semibold text-gray-900">{item.productName}</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{item.facilityName} · Current: {item.currentStock} {item.productUnit}</p>
           </div>
-        </form>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={16} /></button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-6 space-y-6">
+          {/* Weekly Trend Chart */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Week-on-Week Stock Trend</h3>
+            {chartData.length === 0 ? (
+              <div className="h-40 flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-xl">
+                No weekly data yet — data records on each stock update.
+              </div>
+            ) : (
+              <div className="h-48 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={40} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: '10px', border: '1px solid #e5e7eb', fontSize: 12 }}
+                      formatter={(v) => [`${v} ${item.productUnit}`, 'Stock on Hand']}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="stock"
+                      stroke="#6366f1"
+                      strokeWidth={2.5}
+                      dot={{ r: 4, fill: '#6366f1', strokeWidth: 0 }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          {/* Change Ledger */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Change Log (last 90 days)</h3>
+            {ledger.length === 0 ? (
+              <div className="text-sm text-gray-400 text-center py-6 bg-gray-50 rounded-xl">No changes recorded yet.</div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-gray-100">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-gray-50 text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-2.5 text-left font-semibold">Date</th>
+                      <th className="px-4 py-2.5 text-center font-semibold">Type</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">Before</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">Change</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">After</th>
+                      <th className="px-4 py-2.5 text-left font-semibold">Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {ledger.map((e) => (
+                      <tr key={e.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-2.5 text-gray-500">
+                          {new Date(e.changedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="px-4 py-2.5 text-center">
+                          <span className={`inline-block px-2 py-0.5 rounded-full font-medium ${CHANGE_COLOR[e.changeType] ?? 'bg-gray-100 text-gray-600'}`}>
+                            {e.changeType}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-gray-600">{e.previousStock}</td>
+                        <td className={`px-4 py-2.5 text-right font-semibold ${e.changeAmount > 0 ? 'text-green-600' : e.changeAmount < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                          {e.changeAmount > 0 ? `+${e.changeAmount}` : e.changeAmount}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{e.newStock}</td>
+                        <td className="px-4 py-2.5 text-gray-500">{e.reason ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -275,6 +446,12 @@ export default function Inventory() {
                         <ArrowUpDown size={13} /> Adjust Stock
                       </button>
                       <button
+                        onClick={() => setModal({ type: 'history', item: inv })}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium border border-gray-200 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                      >
+                        <History size={13} /> History
+                      </button>
+                      <button
                         onClick={() => setModal({ type: 'edit', item: inv })}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium border border-gray-200 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors"
                       >
@@ -337,9 +514,16 @@ export default function Inventory() {
                             <button
                               onClick={() => setModal({ type: 'adjust', item: inv })}
                               className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600 transition-colors"
-                              title="Adjust stock"
+                              title="Update stock"
                             >
                               <ArrowUpDown size={14} />
+                            </button>
+                            <button
+                              onClick={() => setModal({ type: 'history', item: inv })}
+                              className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-indigo-600 transition-colors"
+                              title="Stock history"
+                            >
+                              <History size={14} />
                             </button>
                             <button
                               onClick={() => setModal({ type: 'edit', item: inv })}
@@ -375,6 +559,7 @@ export default function Inventory() {
       {modal?.type === 'create' && <CreateEditModal onClose={() => setModal(null)} lockedFacilityId={isFacilityManager ? (authFacilityId ?? undefined) : undefined} />}
       {modal?.type === 'edit' && <CreateEditModal item={modal.item} onClose={() => setModal(null)} />}
       {modal?.type === 'adjust' && <AdjustModal item={modal.item} onClose={() => setModal(null)} />}
+      {modal?.type === 'history' && <StockHistoryModal item={modal.item} onClose={() => setModal(null)} />}
     </div>
   );
 }

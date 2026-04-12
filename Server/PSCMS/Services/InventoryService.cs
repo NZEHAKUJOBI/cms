@@ -59,7 +59,7 @@ public class InventoryService : IInventoryService
             .ToListAsync();
     }
 
-    public async Task<InventoryDto> CreateAsync(CreateInventoryDto dto)
+    public async Task<InventoryDto> CreateAsync(CreateInventoryDto dto, Guid? createdBy = null)
     {
         var exists = await _db.Inventories.AnyAsync(i => i.FacilityId == dto.FacilityId && i.ProductId == dto.ProductId);
         if (exists) throw new InvalidOperationException("Inventory record already exists for this facility and product.");
@@ -76,8 +76,11 @@ public class InventoryService : IInventoryService
                 : null
         };
         _db.Inventories.Add(inv);
-        await _db.SaveChangesAsync();
 
+        // Record initial ledger entry
+        await RecordLedgerAsync(inv, 0, inv.CurrentStock, "Initial", "Initial stock entry", createdBy);
+
+        await _db.SaveChangesAsync();
         return await GetByIdAsync(inv.Id) ?? throw new InvalidOperationException("Failed to retrieve created inventory.");
     }
 
@@ -86,21 +89,28 @@ public class InventoryService : IInventoryService
         var inv = await _db.Inventories.FindAsync(id);
         if (inv is null) return null;
 
+        var previousStock = inv.CurrentStock;
+        var stockChanged = dto.CurrentStock.HasValue && dto.CurrentStock.Value != previousStock;
+
         if (dto.CurrentStock.HasValue) inv.CurrentStock = dto.CurrentStock.Value;
         if (dto.ReorderLevel.HasValue) inv.ReorderLevel = dto.ReorderLevel.Value;
         if (dto.BatchNumber is not null) inv.BatchNumber = dto.BatchNumber;
         if (dto.ExpiryDate.HasValue) inv.ExpiryDate = DateTime.SpecifyKind(dto.ExpiryDate.Value, DateTimeKind.Utc);
         inv.LastUpdated = DateTime.UtcNow;
 
+        if (stockChanged)
+            await RecordLedgerAsync(inv, previousStock, inv.CurrentStock, "Set", "Manual edit", null);
+
         await _db.SaveChangesAsync();
         return await GetByIdAsync(id);
     }
 
-    public async Task<InventoryDto?> AdjustStockAsync(Guid id, AdjustStockDto dto)
+    public async Task<InventoryDto?> AdjustStockAsync(Guid id, AdjustStockDto dto, Guid? changedBy = null)
     {
         var inv = await _db.Inventories.FindAsync(id);
         if (inv is null) return null;
 
+        var previousStock = inv.CurrentStock;
         if (dto.AdjustmentType == "Add")
             inv.CurrentStock += dto.Quantity;
         else if (dto.AdjustmentType == "Subtract")
@@ -109,6 +119,21 @@ public class InventoryService : IInventoryService
             throw new InvalidOperationException("AdjustmentType must be 'Add' or 'Subtract'.");
 
         inv.LastUpdated = DateTime.UtcNow;
+        await RecordLedgerAsync(inv, previousStock, inv.CurrentStock, dto.AdjustmentType, dto.Reason, changedBy);
+        await _db.SaveChangesAsync();
+        return await GetByIdAsync(id);
+    }
+
+    public async Task<InventoryDto?> SetStockAsync(Guid id, SetStockDto dto, Guid? changedBy = null)
+    {
+        var inv = await _db.Inventories.FindAsync(id);
+        if (inv is null) return null;
+
+        var previousStock = inv.CurrentStock;
+        inv.CurrentStock = Math.Max(0, dto.StockOnHand);
+        inv.LastUpdated = DateTime.UtcNow;
+
+        await RecordLedgerAsync(inv, previousStock, inv.CurrentStock, "Set", dto.Reason ?? "Physical count", changedBy);
         await _db.SaveChangesAsync();
         return await GetByIdAsync(id);
     }
@@ -139,6 +164,91 @@ public class InventoryService : IInventoryService
             .OrderBy(i => i.ExpiryDate)
             .Select(i => ToDto(i))
             .ToListAsync();
+    }
+
+    public async Task<List<StockLedgerDto>> GetStockHistoryAsync(Guid inventoryId, int days = 90)
+    {
+        var since = DateTime.UtcNow.AddDays(-Math.Abs(days));
+        return await _db.StockLedger
+            .Where(sl => sl.InventoryId == inventoryId && sl.ChangedAt >= since)
+            .OrderByDescending(sl => sl.ChangedAt)
+            .Select(sl => new StockLedgerDto
+            {
+                Id = sl.Id,
+                PreviousStock = sl.PreviousStock,
+                NewStock = sl.NewStock,
+                ChangeAmount = sl.ChangeAmount,
+                ChangeType = sl.ChangeType,
+                Reason = sl.Reason,
+                ChangedAt = sl.ChangedAt
+            })
+            .ToListAsync();
+    }
+
+    public async Task<List<WeeklySnapshotDto>> GetWeeklySnapshotsAsync(Guid inventoryId, int weeks = 12)
+    {
+        var since = GetWeekStart(DateTime.UtcNow).AddDays(-7 * (Math.Max(1, weeks) - 1));
+        return await _db.WeeklyStockSnapshots
+            .Where(s => s.InventoryId == inventoryId && s.WeekStartDate >= since)
+            .OrderBy(s => s.WeekStartDate)
+            .Select(s => new WeeklySnapshotDto
+            {
+                Id = s.Id,
+                StockOnHand = s.StockOnHand,
+                WeekStartDate = s.WeekStartDate,
+                RecordedAt = s.RecordedAt
+            })
+            .ToListAsync();
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /// <summary>Adds a StockLedger row and upserts the WeeklyStockSnapshot for the current week.</summary>
+    private async Task RecordLedgerAsync(Inventory inv, int previousStock, int newStock, string changeType, string? reason, Guid? changedBy)
+    {
+        _db.StockLedger.Add(new StockLedger
+        {
+            InventoryId = inv.Id,
+            FacilityId = inv.FacilityId,
+            ProductId = inv.ProductId,
+            PreviousStock = previousStock,
+            NewStock = newStock,
+            ChangeAmount = newStock - previousStock,
+            ChangeType = changeType,
+            Reason = reason,
+            ChangedBy = changedBy,
+            ChangedAt = DateTime.UtcNow
+        });
+
+        var weekStart = GetWeekStart(DateTime.UtcNow);
+        var snapshot = await _db.WeeklyStockSnapshots
+            .FirstOrDefaultAsync(s => s.InventoryId == inv.Id && s.WeekStartDate == weekStart);
+
+        if (snapshot is null)
+        {
+            _db.WeeklyStockSnapshots.Add(new WeeklyStockSnapshot
+            {
+                InventoryId = inv.Id,
+                FacilityId = inv.FacilityId,
+                ProductId = inv.ProductId,
+                StockOnHand = newStock,
+                WeekStartDate = weekStart,
+                RecordedAt = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            snapshot.StockOnHand = newStock;
+            snapshot.RecordedAt = DateTime.UtcNow;
+        }
+    }
+
+    /// <summary>Returns the Monday (UTC) of the week containing <paramref name="date"/>.</summary>
+    private static DateTime GetWeekStart(DateTime date)
+    {
+        var d = date.Date;
+        var offset = (int)d.DayOfWeek == 0 ? 6 : (int)d.DayOfWeek - 1;
+        return DateTime.SpecifyKind(d.AddDays(-offset), DateTimeKind.Utc);
     }
 
     private static InventoryDto ToDto(Inventory i) => new()

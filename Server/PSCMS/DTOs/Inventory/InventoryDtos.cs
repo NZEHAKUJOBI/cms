@@ -42,3 +42,28 @@ public class AdjustStockDto
     public string AdjustmentType { get; set; } = string.Empty; // "Add" or "Subtract"
     public string Reason { get; set; } = string.Empty;
 }
+
+public class SetStockDto
+{
+    public int StockOnHand { get; set; }
+    public string? Reason { get; set; }
+}
+
+public class StockLedgerDto
+{
+    public Guid Id { get; set; }
+    public int PreviousStock { get; set; }
+    public int NewStock { get; set; }
+    public int ChangeAmount { get; set; }
+    public string ChangeType { get; set; } = string.Empty;
+    public string? Reason { get; set; }
+    public DateTime ChangedAt { get; set; }
+}
+
+public class WeeklySnapshotDto
+{
+    public Guid Id { get; set; }
+    public int StockOnHand { get; set; }
+    public DateTime WeekStartDate { get; set; }
+    public DateTime RecordedAt { get; set; }
+}
