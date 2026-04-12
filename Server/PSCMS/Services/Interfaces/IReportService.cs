@@ -8,4 +8,5 @@ public interface IReportService
     Task<FacilityDashboardDto> GetFacilityDashboardAsync(Guid facilityId);
     Task<StockReportDto> GetStockReportAsync(Guid facilityId);
     Task<OrderReportDto> GetOrderReportAsync(DateTime from, DateTime to, Guid? facilityId);
+    Task<DrugChartDataDto> GetDrugChartDataAsync();
 }

@@ -366,3 +366,29 @@ export interface FacilityDashboardDto {
   categoryBreakdown: CategoryStockDto[];
   topLowStockItems: LowStockAlertItemDto[];
 }
+
+export interface CategoryChartItem {
+  category: string;
+  count: number;
+}
+
+export interface DosageFormChartItem {
+  dosageForm: string;
+  count: number;
+}
+
+export interface DrugAvailabilityItem {
+  name: string;
+  category: string;
+  totalStock: number;
+  facilityCount: number;
+}
+
+export interface DrugChartDataDto {
+  productsByCategory: CategoryChartItem[];
+  productsByDosageForm: DosageFormChartItem[];
+  drugAvailability: DrugAvailabilityItem[];
+  totalDrugs: number;
+  activeDrugs: number;
+  inactiveDrugs: number;
+}

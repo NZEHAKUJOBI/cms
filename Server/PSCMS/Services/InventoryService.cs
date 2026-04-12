@@ -71,7 +71,9 @@ public class InventoryService : IInventoryService
             CurrentStock = dto.CurrentStock,
             ReorderLevel = dto.ReorderLevel,
             BatchNumber = dto.BatchNumber,
-            ExpiryDate = dto.ExpiryDate
+            ExpiryDate = dto.ExpiryDate.HasValue
+                ? DateTime.SpecifyKind(dto.ExpiryDate.Value, DateTimeKind.Utc)
+                : null
         };
         _db.Inventories.Add(inv);
         await _db.SaveChangesAsync();
@@ -87,7 +89,7 @@ public class InventoryService : IInventoryService
         if (dto.CurrentStock.HasValue) inv.CurrentStock = dto.CurrentStock.Value;
         if (dto.ReorderLevel.HasValue) inv.ReorderLevel = dto.ReorderLevel.Value;
         if (dto.BatchNumber is not null) inv.BatchNumber = dto.BatchNumber;
-        if (dto.ExpiryDate.HasValue) inv.ExpiryDate = dto.ExpiryDate;
+        if (dto.ExpiryDate.HasValue) inv.ExpiryDate = DateTime.SpecifyKind(dto.ExpiryDate.Value, DateTimeKind.Utc);
         inv.LastUpdated = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();

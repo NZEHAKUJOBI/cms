@@ -9,10 +9,22 @@ import {
   Truck,
   AlertTriangle,
   Clock,
-  BoxesIcon,
   TrendingDown,
+  Pill,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
 
 function StatCard({
   label,
@@ -127,6 +139,133 @@ function AdminDashboard() {
           </div>
         </div>
       )}
+
+      <DrugCharts />
+    </div>
+  );
+}
+
+const PIE_COLORS = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#818cf8', '#4f46e5', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#a5b4fc', '#e0e7ff'];
+
+function DrugCharts() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['drug-charts'],
+    queryFn: reportsApi.getDrugChartData,
+  });
+
+  if (isLoading) return <div className="flex items-center justify-center h-32 text-gray-400">Loading drug analytics…</div>;
+  if (!data) return null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Pill size={18} className="text-indigo-500" />
+        <h2 className="text-lg font-semibold text-gray-900">Drug Analytics</h2>
+        <span className="ml-auto text-xs text-gray-400">{data.totalDrugs} drugs registered ({data.activeDrugs} active)</span>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Bar Chart — Products by Category */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900 text-sm">Products by Category</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Number of drug regimens per treatment category</p>
+          </div>
+          <div className="px-2 py-4" style={{ height: Math.max(280, data.productsByCategory.length * 36) }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.productsByCategory} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
+                <XAxis type="number" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                <YAxis
+                  dataKey="category"
+                  type="category"
+                  width={180}
+                  tick={{ fontSize: 11, fill: '#6b7280' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,.07)' }}
+                  formatter={(value) => [`${value} products`, 'Count']}
+                />
+                <Bar dataKey="count" fill="#6366f1" radius={[0, 6, 6, 0]} barSize={20} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Pie Chart — Dosage Forms */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900 text-sm">Products by Dosage Form</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Distribution of drug types by formulation</p>
+          </div>
+          <div className="px-2 py-4" style={{ height: 320 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data.productsByDosageForm}
+                  dataKey="count"
+                  nameKey="dosageForm"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={100}
+                  paddingAngle={3}
+                  stroke="none"
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  label={(props: any) => `${props.dosageForm ?? ''} (${((props.percent ?? 0) * 100).toFixed(0)}%)`}
+                >
+                  {data.productsByDosageForm.map((_, idx) => (
+                    <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,.07)' }}
+                  formatter={(value, name) => [`${value} products`, name]}
+                />
+                <Legend
+                  wrapperStyle={{ fontSize: '11px' }}
+                  iconType="circle"
+                  iconSize={8}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Bar Chart — Top Drugs by Stock Quantity */}
+      {data.drugAvailability.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900 text-sm">Top Drugs by Stock Quantity</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Total stock across all facilities (top 20)</p>
+          </div>
+          <div className="px-2 py-4" style={{ height: Math.max(280, data.drugAvailability.length * 34) }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.drugAvailability} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
+                <XAxis type="number" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                <YAxis
+                  dataKey="name"
+                  type="category"
+                  width={220}
+                  tick={{ fontSize: 10, fill: '#6b7280' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,.07)' }}
+                  formatter={(value, _name, props) => [
+                    `${Number(value).toLocaleString()} units (${(props as { payload: { facilityCount: number } }).payload.facilityCount} facilities)`,
+                    'Total Stock',
+                  ]}
+                />
+                <Bar dataKey="totalStock" fill="#8b5cf6" radius={[0, 6, 6, 0]} barSize={18} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -212,6 +351,8 @@ function FacilityManagerDashboard() {
           </div>
         )}
       </div>
+
+      <DrugCharts />
     </div>
   );
 }

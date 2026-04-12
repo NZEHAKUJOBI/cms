@@ -42,8 +42,13 @@ function CreateEditModal({ item, onClose, lockedFacilityId }: { item?: Inventory
   });
 
   const onSubmit = (data: CreateInventoryDto & UpdateInventoryDto) => {
-    if (item) updateMut.mutate({ id: item.id, dto: data });
-    else createMut.mutate(data as CreateInventoryDto);
+    const cleaned = {
+      ...data,
+      expiryDate: data.expiryDate || undefined,
+      batchNumber: data.batchNumber || undefined,
+    };
+    if (item) updateMut.mutate({ id: item.id, dto: cleaned });
+    else createMut.mutate(cleaned as CreateInventoryDto);
   };
 
   const isPending = createMut.isPending || updateMut.isPending;

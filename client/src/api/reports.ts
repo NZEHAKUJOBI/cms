@@ -1,5 +1,5 @@
 import api from '@/lib/api';
-import type { ApiResponse, DashboardSummaryDto, FacilityDashboardDto, OrderReportDto, StockReportDto } from '@/types';
+import type { ApiResponse, DashboardSummaryDto, DrugChartDataDto, FacilityDashboardDto, OrderReportDto, StockReportDto } from '@/types';
 
 export const reportsApi = {
   getDashboard: () =>
@@ -15,4 +15,7 @@ export const reportsApi = {
     api
       .get<ApiResponse<OrderReportDto>>('/reports/orders', { params: { from, to, facilityId } })
       .then((r) => r.data.data),
+
+  getDrugChartData: () =>
+    api.get<ApiResponse<DrugChartDataDto>>('/reports/drug-charts').then((r) => r.data.data),
 };

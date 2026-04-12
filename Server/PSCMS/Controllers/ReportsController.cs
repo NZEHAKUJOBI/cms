@@ -86,4 +86,12 @@ public class ReportsController : ControllerBase
         var report = await _reportService.GetOrderReportAsync(from, to, facilityId);
         return Ok(ApiResponse<OrderReportDto>.Ok(report));
     }
+
+    /// <summary>Drug chart data — products by category, dosage form, and stock availability.</summary>
+    [HttpGet("drug-charts")]
+    public async Task<IActionResult> DrugCharts()
+    {
+        var data = await _reportService.GetDrugChartDataAsync();
+        return Ok(ApiResponse<DrugChartDataDto>.Ok(data));
+    }
 }

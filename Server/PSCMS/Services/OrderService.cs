@@ -52,7 +52,9 @@ public class OrderService : IOrderService
         {
             OrderNumber = orderNumber,
             FacilityId = dto.FacilityId,
-            RequiredDate = dto.RequiredDate,
+            RequiredDate = dto.RequiredDate.HasValue
+                ? DateTime.SpecifyKind(dto.RequiredDate.Value, DateTimeKind.Utc)
+                : null,
             Notes = dto.Notes,
             RequestedBy = requestedBy,
             OrderItems = dto.OrderItems.Select(i => new OrderItem

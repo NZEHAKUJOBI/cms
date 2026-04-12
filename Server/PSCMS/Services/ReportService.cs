@@ -170,4 +170,46 @@ public class ReportService : IReportService
             TopLowStockItems = topLowStock
         };
     }
+
+    public async Task<DrugChartDataDto> GetDrugChartDataAsync()
+    {
+        var products = await _db.Products.ToListAsync();
+
+        var byCategory = products
+            .GroupBy(p => p.Category)
+            .Select(g => new CategoryChartItem { Category = g.Key, Count = g.Count() })
+            .OrderByDescending(c => c.Count)
+            .ToList();
+
+        var byForm = products
+            .GroupBy(p => p.DosageForm)
+            .Select(g => new DosageFormChartItem { DosageForm = g.Key, Count = g.Count() })
+            .OrderByDescending(c => c.Count)
+            .ToList();
+
+        // Top 20 drugs by total stock across all facilities
+        var drugStock = await _db.Inventories
+            .Include(i => i.Product)
+            .GroupBy(i => new { i.ProductId, i.Product.Name, i.Product.Category })
+            .Select(g => new DrugAvailabilityItem
+            {
+                Name = g.Key.Name,
+                Category = g.Key.Category,
+                TotalStock = g.Sum(i => i.CurrentStock),
+                FacilityCount = g.Select(i => i.FacilityId).Distinct().Count()
+            })
+            .OrderByDescending(d => d.TotalStock)
+            .Take(20)
+            .ToListAsync();
+
+        return new DrugChartDataDto
+        {
+            ProductsByCategory = byCategory,
+            ProductsByDosageForm = byForm,
+            DrugAvailability = drugStock,
+            TotalDrugs = products.Count,
+            ActiveDrugs = products.Count(p => p.IsActive),
+            InactiveDrugs = products.Count(p => !p.IsActive),
+        };
+    }
 }

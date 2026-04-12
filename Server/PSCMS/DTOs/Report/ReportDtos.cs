@@ -92,3 +92,33 @@ public class LowStockAlertItemDto
     public int ReorderLevel { get; set; }
     public bool IsOutOfStock { get; set; }
 }
+
+public class DrugChartDataDto
+{
+    public List<CategoryChartItem> ProductsByCategory { get; set; } = new();
+    public List<DosageFormChartItem> ProductsByDosageForm { get; set; } = new();
+    public List<DrugAvailabilityItem> DrugAvailability { get; set; } = new();
+    public int TotalDrugs { get; set; }
+    public int ActiveDrugs { get; set; }
+    public int InactiveDrugs { get; set; }
+}
+
+public class CategoryChartItem
+{
+    public string Category { get; set; } = string.Empty;
+    public int Count { get; set; }
+}
+
+public class DosageFormChartItem
+{
+    public string DosageForm { get; set; } = string.Empty;
+    public int Count { get; set; }
+}
+
+public class DrugAvailabilityItem
+{
+    public string Name { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public int TotalStock { get; set; }
+    public int FacilityCount { get; set; }
+}

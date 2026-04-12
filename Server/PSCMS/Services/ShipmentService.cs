@@ -55,7 +55,9 @@ public class ShipmentService : IShipmentService
             ShipmentNumber = shipmentNumber,
             OrderId = dto.OrderId,
             FacilityId = dto.FacilityId,
-            ExpectedDeliveryDate = dto.ExpectedDeliveryDate,
+            ExpectedDeliveryDate = dto.ExpectedDeliveryDate.HasValue
+                ? DateTime.SpecifyKind(dto.ExpectedDeliveryDate.Value, DateTimeKind.Utc)
+                : null,
             Notes = dto.Notes,
             PreparedBy = preparedBy,
             ShipmentItems = dto.ShipmentItems.Select(i => new ShipmentItem
@@ -63,7 +65,9 @@ public class ShipmentService : IShipmentService
                 ProductId = i.ProductId,
                 Quantity = i.Quantity,
                 BatchNumber = i.BatchNumber,
-                ExpiryDate = i.ExpiryDate
+                ExpiryDate = i.ExpiryDate.HasValue
+                    ? DateTime.SpecifyKind(i.ExpiryDate.Value, DateTimeKind.Utc)
+                    : null
             }).ToList()
         };
 
@@ -92,7 +96,7 @@ public class ShipmentService : IShipmentService
             throw new InvalidOperationException($"Invalid shipment status: {dto.Status}.");
 
         shipment.Status = newStatus;
-        if (dto.ActualDeliveryDate.HasValue) shipment.ActualDeliveryDate = dto.ActualDeliveryDate;
+        if (dto.ActualDeliveryDate.HasValue) shipment.ActualDeliveryDate = DateTime.SpecifyKind(dto.ActualDeliveryDate.Value, DateTimeKind.Utc);
         if (dto.Notes is not null) shipment.Notes = dto.Notes;
         shipment.UpdatedAt = DateTime.UtcNow;
 
