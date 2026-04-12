@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   Users,
+  ChevronRight,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -48,45 +49,66 @@ export default function Layout() {
 
   const visibleItems = navItems.filter((item) => !user?.role || item.roles.includes(user.role));
 
+  const roleColor =
+    user?.role === 'Admin'
+      ? 'bg-purple-500/20 text-purple-300'
+      : user?.role === 'FacilityManager'
+        ? 'bg-blue-500/20 text-blue-300'
+        : 'bg-emerald-500/20 text-emerald-300';
+
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
     <div className={`flex flex-col h-full ${mobile ? '' : 'w-64'}`}>
-      <div className="flex items-center gap-2 px-6 py-5 border-b border-blue-800">
-        <div className="w-8 h-8 bg-blue-400 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+      {/* Logo */}
+      <div className="flex items-center gap-3 px-5 py-5">
+        <div className="w-9 h-9 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-indigo-500/30">
           Rx
         </div>
-        <span className="text-white font-semibold text-lg">PSCMS</span>
+        <div>
+          <span className="text-white font-semibold text-lg tracking-tight">PSCMS</span>
+          <div className="text-[10px] text-slate-400 -mt-0.5 font-medium">Supply Chain</div>
+        </div>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      {/* Navigation */}
+      <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto scrollbar-thin">
         {visibleItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
             onClick={() => setSidebarOpen(false)}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              `group flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 ${
                 isActive
-                  ? 'bg-blue-700 text-white'
-                  : 'text-blue-100 hover:bg-blue-800 hover:text-white'
+                  ? 'bg-white/10 text-white shadow-sm backdrop-blur-sm'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
               }`
             }
           >
-            <Icon size={18} />
-            {label}
+            <Icon size={18} className="flex-shrink-0" />
+            <span className="flex-1">{label}</span>
+            <ChevronRight size={14} className="opacity-0 -translate-x-1 group-hover:opacity-50 group-hover:translate-x-0 transition-all duration-200" />
           </NavLink>
         ))}
       </nav>
 
-      <div className="px-4 py-4 border-t border-blue-800">
-        <div className="text-blue-200 text-xs mb-3">
-          <div className="font-medium text-white">{user?.username}</div>
-          <div>{user?.role}</div>
+      {/* User card */}
+      <div className="mx-3 mb-3 p-3 rounded-xl bg-white/5 backdrop-blur-sm">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+            {user?.username?.charAt(0).toUpperCase() ?? '?'}
+          </div>
+          <div className="min-w-0">
+            <div className="font-medium text-white text-sm truncate">{user?.username}</div>
+            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium mt-0.5 ${roleColor}`}>
+              {user?.role}
+            </span>
+          </div>
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-2 text-blue-200 hover:text-white text-sm w-full"
+          className="flex items-center gap-2 text-slate-400 hover:text-white text-xs w-full px-1 py-1 rounded-lg hover:bg-white/5 transition-colors"
         >
-          <LogOut size={16} />
+          <LogOut size={14} />
           Sign out
         </button>
       </div>
@@ -94,25 +116,25 @@ export default function Layout() {
   );
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50/80">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-blue-900 flex-shrink-0">
+      <aside className="hidden md:flex flex-col w-64 bg-slate-900 flex-shrink-0 border-r border-slate-800">
         <Sidebar />
       </aside>
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
+        <div className="fixed inset-0 z-40 md:hidden animate-fade-in">
           <div
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setSidebarOpen(false)}
           />
-          <aside className="relative z-50 flex flex-col w-64 h-full bg-blue-900">
+          <aside className="relative z-50 flex flex-col w-72 h-full bg-slate-900 shadow-2xl animate-slide-in-left">
             <button
-              className="absolute top-3 right-3 text-white"
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
               onClick={() => setSidebarOpen(false)}
             >
-              <X size={20} />
+              <X size={18} />
             </button>
             <Sidebar mobile />
           </aside>
@@ -121,46 +143,63 @@ export default function Layout() {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top bar (mobile) */}
-        <header className="md:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200">
-          <button onClick={() => setSidebarOpen(true)} className="text-gray-500">
-            <Menu size={22} />
-          </button>
-          <span className="font-semibold text-blue-900">PSCMS</span>
+        {/* Top header — visible on all screens */}
+        <header className="flex items-center justify-between px-4 md:px-6 py-3 bg-white/80 backdrop-blur-md border-b border-gray-200/60 sticky top-0 z-20">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden p-2 -ml-2 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors"
+            >
+              <Menu size={20} />
+            </button>
+            <span className="md:hidden font-semibold text-slate-800 tracking-tight">PSCMS</span>
+          </div>
+          <div className="hidden md:flex items-center gap-2 text-sm text-gray-500">
+            <span>Welcome back,</span>
+            <span className="font-medium text-gray-800">{user?.username}</span>
+          </div>
         </header>
 
         <LowStockBanner />
 
         <main
-          className="flex-1 overflow-y-auto p-4 md:p-6"
+          className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin"
           style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
         >
-          <Outlet />
+          <div className="animate-fade-in">
+            <Outlet />
+          </div>
         </main>
       </div>
 
-    {/* Bottom navigation – mobile only */}
-    <nav
-      className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 flex z-30"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-    >
-      {bottomNavItems.map(({ to, label, icon: Icon }) => (
-        <NavLink
-          key={to}
-          to={to}
-          className={({ isActive }) =>
-            `flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium transition-colors ${
-              isActive ? 'text-blue-600' : 'text-gray-400'
-            }`
-          }
-        >
-          <Icon size={22} />
-          <span>{label}</span>
-        </NavLink>
-      ))}
-    </nav>
+      {/* Bottom navigation – mobile only */}
+      <nav
+        className="md:hidden fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur-md border-t border-gray-200/60 flex z-30"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
+        {bottomNavItems.map(({ to, label, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              `flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-[11px] font-medium transition-all ${
+                isActive ? 'text-indigo-600' : 'text-gray-400'
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <div className={`p-1 rounded-lg transition-colors ${isActive ? 'bg-indigo-50' : ''}`}>
+                  <Icon size={20} />
+                </div>
+                <span>{label}</span>
+              </>
+            )}
+          </NavLink>
+        ))}
+      </nav>
 
-    <InstallPrompt />
-  </div>
+      <InstallPrompt />
+    </div>
   );
 }

@@ -130,7 +130,7 @@ export default function FacilityUsers() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Facility Users</h1>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Facility Users</h1>
           <div className="flex items-center gap-1.5 mt-1 text-sm text-gray-500">
             <Building2 size={14} />
             <span>{facilityName}</span>
@@ -138,7 +138,7 @@ export default function FacilityUsers() {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white rounded-xl text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all active:scale-[0.98]"
         >
           <Plus size={16} />
           <span className="hidden sm:inline">Add User</span>
@@ -147,24 +147,24 @@ export default function FacilityUsers() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
           <div className="text-2xl font-bold text-gray-900">{users.length}</div>
           <div className="text-xs text-gray-500 mt-0.5">Total Users</div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <div className="text-2xl font-bold text-green-600">{users.filter((u) => u.isActive).length}</div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+          <div className="text-2xl font-bold text-emerald-600">{users.filter((u) => u.isActive).length}</div>
           <div className="text-xs text-gray-500 mt-0.5">Active</div>
         </div>
       </div>
 
       {/* User list */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-48 text-gray-400">Loading…</div>
         ) : users.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-gray-400 gap-2">
             <span>No users yet.</span>
-            <button onClick={() => setShowCreate(true)} className="text-blue-600 text-sm hover:underline">Add the first user</button>
+            <button onClick={() => setShowCreate(true)} className="text-indigo-600 text-sm hover:underline">Add the first user</button>
           </div>
         ) : (
           <>
@@ -179,36 +179,36 @@ export default function FacilityUsers() {
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-                    <th className="px-5 py-3 text-left">User</th>
-                    <th className="px-5 py-3 text-left">Email</th>
-                    <th className="px-5 py-3 text-left">Role</th>
-                    <th className="px-5 py-3 text-left">Joined</th>
-                    <th className="px-5 py-3 text-center">Status</th>
-                    <th className="px-5 py-3" />
+                  <tr className="bg-gray-50/80 text-gray-500 text-xs uppercase tracking-wider">
+                    <th className="px-5 py-3.5 text-left font-semibold">User</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Email</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Role</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Joined</th>
+                    <th className="px-5 py-3.5 text-center font-semibold">Status</th>
+                    <th className="px-5 py-3.5" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-gray-50">
-                      <td className="px-5 py-3 font-medium text-gray-900">{u.username}</td>
-                      <td className="px-5 py-3 text-gray-600">{u.email}</td>
-                      <td className="px-5 py-3">
+                    <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-3.5 font-medium text-gray-900">{u.username}</td>
+                      <td className="px-5 py-3.5 text-gray-600">{u.email}</td>
+                      <td className="px-5 py-3.5">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[u.role] ?? 'bg-gray-100 text-gray-600'}`}>
                           {u.role}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-gray-500 text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
-                      <td className="px-5 py-3 text-center">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      <td className="px-5 py-3.5 text-gray-500 text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
+                      <td className="px-5 py-3.5 text-center">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${u.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
                           {u.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-right">
+                      <td className="px-5 py-3.5 text-right">
                         <button
                           disabled={toggleMut.isPending}
                           onClick={() => toggleMut.mutate({ id: u.id, isActive: !u.isActive })}
-                          className={`p-1.5 rounded-lg transition-colors disabled:opacity-50 ${u.isActive ? 'hover:bg-red-50 text-red-400 hover:text-red-600' : 'hover:bg-green-50 text-gray-400 hover:text-green-600'}`}
+                          className={`p-2 rounded-xl transition-colors disabled:opacity-50 ${u.isActive ? 'hover:bg-red-50 text-gray-400 hover:text-red-600' : 'hover:bg-green-50 text-gray-400 hover:text-green-600'}`}
                           title={u.isActive ? 'Deactivate' : 'Activate'}
                         >
                           {u.isActive ? <UserX size={15} /> : <UserCheck size={15} />}

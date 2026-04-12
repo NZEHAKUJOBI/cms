@@ -24,25 +24,27 @@ export default function LowStockBanner() {
 
   return (
     <div
-      className={`flex items-center gap-3 px-4 py-2.5 text-sm ${
+      className={`flex items-center gap-3 px-4 py-2.5 text-sm animate-slide-up ${
         isRed
-          ? 'bg-red-50 border-b border-red-200 text-red-800'
-          : 'bg-amber-50 border-b border-amber-200 text-amber-800'
+          ? 'bg-gradient-to-r from-rose-50 to-red-50 border-b border-rose-200/60 text-rose-800'
+          : 'bg-gradient-to-r from-amber-50 to-yellow-50 border-b border-amber-200/60 text-amber-800'
       }`}
     >
-      <AlertTriangle size={16} className="flex-shrink-0" />
+      <div className={`p-1 rounded-lg ${isRed ? 'bg-rose-100' : 'bg-amber-100'}`}>
+        <AlertTriangle size={14} className="flex-shrink-0" />
+      </div>
       <span className="flex-1">
         {outOfStock > 0 && <strong>{outOfStock} out of stock</strong>}
         {outOfStock > 0 && lowOnly > 0 && ' and '}
         {lowOnly > 0 && <strong>{lowOnly} low stock</strong>}
         {' '}item{lowStockItems.length !== 1 ? 's' : ''}.{' '}
-        <Link to="/inventory" className="underline font-medium">
+        <Link to="/inventory" className="underline font-medium hover:no-underline">
           View inventory →
         </Link>
       </span>
       <button
         onClick={() => setDismissed(true)}
-        className="p-0.5 rounded hover:bg-black/10"
+        className={`p-1 rounded-lg transition-colors ${isRed ? 'hover:bg-rose-100' : 'hover:bg-amber-100'}`}
         aria-label="Dismiss"
       >
         <X size={14} />

@@ -5,12 +5,44 @@ export default {
     extend: {
       colors: {
         brand: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          900: '#1e3a8a',
+          50: '#eef2ff',
+          100: '#e0e7ff',
+          200: '#c7d2fe',
+          300: '#a5b4fc',
+          400: '#818cf8',
+          500: '#6366f1',
+          600: '#4f46e5',
+          700: '#4338ca',
+          800: '#3730a3',
+          900: '#312e81',
+          950: '#1e1b4b',
+        },
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+      },
+      animation: {
+        'bar-grow': 'barGrow 0.6s ease-out forwards',
+        'fade-in': 'fadeIn 0.3s ease-out',
+        'slide-in-left': 'slideInLeft 0.25s ease-out',
+        'slide-up': 'slideUp 0.25s ease-out',
+      },
+      keyframes: {
+        barGrow: {
+          '0%': { width: '0%' },
+          '100%': { width: 'var(--bar-width)' },
+        },
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideInLeft: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+        slideUp: {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
       },
     },

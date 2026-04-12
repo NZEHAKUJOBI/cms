@@ -156,11 +156,14 @@ export default function Shipments() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Shipments</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Shipments</h1>
+          <p className="text-sm text-gray-500 mt-0.5 hidden sm:block">Track deliveries and logistics</p>
+        </div>
         {(isAdmin || isPharmacist) && (
           <button
             onClick={() => setCreateModal(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all active:scale-[0.98]"
           >
             <Plus size={16} /> New Shipment
           </button>
@@ -172,51 +175,82 @@ export default function Shipments() {
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-            className="appearance-none border rounded-lg pl-3 pr-8 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+            className="appearance-none border border-gray-200 rounded-xl pl-3 pr-8 py-2.5 text-sm bg-white"
           >
             <option value="">All statuses</option>
             {SHIPMENT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-48 text-gray-400">Loading…</div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Mobile card list */}
+            <div className="sm:hidden divide-y divide-gray-100">
+              {!data?.items.length ? (
+                <div className="px-5 py-10 text-center text-gray-400">No shipments found.</div>
+              ) : data.items.map((s) => (
+                <div key={s.id} className="p-4 space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-mono font-medium text-indigo-600">{s.shipmentNumber}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{s.facilityName}</div>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_COLORS[s.status] ?? 'bg-gray-100 text-gray-500'}`}>{s.status}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="px-2 py-0.5 bg-gray-100 rounded-md text-gray-600">Shipped: {new Date(s.shipmentDate).toLocaleDateString()}</span>
+                    {s.expectedDeliveryDate && <span className="px-2 py-0.5 bg-gray-100 rounded-md text-gray-600">ETA: {new Date(s.expectedDeliveryDate).toLocaleDateString()}</span>}
+                    <span className="px-2 py-0.5 bg-indigo-50 rounded-md text-indigo-600">{s.shipmentItems.length} items</span>
+                  </div>
+                  {s.status !== 'Received' && s.status !== 'Cancelled' && (
+                    <button
+                      onClick={() => setStatusModal(s)}
+                      className="w-full py-2 text-xs font-medium border border-gray-200 rounded-xl hover:bg-gray-50 active:bg-gray-100"
+                    >
+                      Update Status
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-                    <th className="px-5 py-3 text-left">Shipment #</th>
-                    <th className="px-5 py-3 text-left">Facility</th>
-                    <th className="px-5 py-3 text-left">Order #</th>
-                    <th className="px-5 py-3 text-center">Status</th>
-                    <th className="px-5 py-3 text-left">Shipped</th>
-                    <th className="px-5 py-3 text-left">Expected</th>
-                    <th className="px-5 py-3 text-right">Items</th>
-                    <th className="px-5 py-3" />
+                  <tr className="bg-gray-50/80 text-gray-500 text-xs uppercase tracking-wider">
+                    <th className="px-5 py-3.5 text-left font-semibold">Shipment #</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Facility</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Order #</th>
+                    <th className="px-5 py-3.5 text-center font-semibold">Status</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Shipped</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Expected</th>
+                    <th className="px-5 py-3.5 text-right font-semibold">Items</th>
+                    <th className="px-5 py-3.5" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {data?.items.map((s) => (
-                    <tr key={s.id} className="hover:bg-gray-50">
-                      <td className="px-5 py-3 font-mono font-medium text-blue-600">{s.shipmentNumber}</td>
-                      <td className="px-5 py-3 text-gray-700">{s.facilityName}</td>
-                      <td className="px-5 py-3 font-mono text-gray-500 text-xs">{s.orderNumber ?? '—'}</td>
-                      <td className="px-5 py-3 text-center">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[s.status] ?? 'bg-gray-100 text-gray-500'}`}>{s.status}</span>
+                    <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-3.5 font-mono font-medium text-indigo-600">{s.shipmentNumber}</td>
+                      <td className="px-5 py-3.5 text-gray-700">{s.facilityName}</td>
+                      <td className="px-5 py-3.5 font-mono text-gray-500 text-xs">{s.orderNumber ?? '—'}</td>
+                      <td className="px-5 py-3.5 text-center">
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[s.status] ?? 'bg-gray-100 text-gray-500'}`}>{s.status}</span>
                       </td>
-                      <td className="px-5 py-3 text-gray-600 text-xs">{new Date(s.shipmentDate).toLocaleDateString()}</td>
-                      <td className="px-5 py-3 text-gray-600 text-xs">{s.expectedDeliveryDate ? new Date(s.expectedDeliveryDate).toLocaleDateString() : '—'}</td>
-                      <td className="px-5 py-3 text-right text-gray-600">{s.shipmentItems.length}</td>
-                      <td className="px-5 py-3 text-right">
+                      <td className="px-5 py-3.5 text-gray-600 text-xs">{new Date(s.shipmentDate).toLocaleDateString()}</td>
+                      <td className="px-5 py-3.5 text-gray-600 text-xs">{s.expectedDeliveryDate ? new Date(s.expectedDeliveryDate).toLocaleDateString() : '—'}</td>
+                      <td className="px-5 py-3.5 text-right text-gray-600">{s.shipmentItems.length}</td>
+                      <td className="px-5 py-3.5 text-right">
                         {s.status !== 'Received' && s.status !== 'Cancelled' && (
                           <button
                             onClick={() => setStatusModal(s)}
-                            className="text-xs text-blue-600 hover:text-blue-800"
+                            className="text-xs font-medium text-indigo-600 hover:text-indigo-800 px-2.5 py-1 rounded-lg hover:bg-indigo-50 transition-colors"
                           >
                             Update
                           </button>
@@ -234,8 +268,8 @@ export default function Shipments() {
               <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 text-sm text-gray-500">
                 <span>Page {data.page} of {data.totalPages}</span>
                 <div className="flex gap-2">
-                  <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="px-3 py-1 border rounded-lg disabled:opacity-40 hover:bg-gray-50">Prev</button>
-                  <button disabled={page === data.totalPages} onClick={() => setPage(p => p + 1)} className="px-3 py-1 border rounded-lg disabled:opacity-40 hover:bg-gray-50">Next</button>
+                  <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="px-3.5 py-1.5 border rounded-xl disabled:opacity-40 hover:bg-gray-50 font-medium transition-colors">Prev</button>
+                  <button disabled={page === data.totalPages} onClick={() => setPage(p => p + 1)} className="px-3.5 py-1.5 border rounded-xl disabled:opacity-40 hover:bg-gray-50 font-medium transition-colors">Next</button>
                 </div>
               </div>
             )}

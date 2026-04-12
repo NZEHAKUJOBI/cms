@@ -139,11 +139,14 @@ export default function Facilities() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Facilities</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Facilities</h1>
+          <p className="text-sm text-gray-500 mt-0.5 hidden sm:block">Manage healthcare facilities</p>
+        </div>
         {isAdmin && (
           <button
             onClick={() => setModal('create')}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all active:scale-[0.98]"
           >
             <Plus size={16} /> Add Facility
           </button>
@@ -152,58 +155,98 @@ export default function Facilities() {
 
       <form onSubmit={handleSearch} className="flex gap-2">
         <div className="relative flex-1 max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search facilities…"
-            className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white placeholder-gray-400"
           />
         </div>
-        <button type="submit" className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm">Search</button>
+        <button type="submit" className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium transition-colors">Search</button>
       </form>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-48 text-gray-400">Loading…</div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Mobile card list */}
+            <div className="sm:hidden divide-y divide-gray-100">
+              {!data?.items.length ? (
+                <div className="px-5 py-10 text-center text-gray-400">No facilities found.</div>
+              ) : data.items.map((f) => (
+                <div key={f.id} className="p-4 space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-medium text-gray-900">{f.name}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{f.type} · <span className="font-mono">{f.code}</span></div>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${f.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {f.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-600">{f.district}, {f.region}</div>
+                  <div className="text-sm text-gray-600">
+                    {f.contactPerson} · <span className="text-gray-400">{f.phone}</span>
+                  </div>
+                  {isAdmin && (
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => setModal(f)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium border border-gray-200 rounded-xl hover:bg-gray-50 active:bg-gray-100"
+                      >
+                        <Pencil size={12} /> Edit
+                      </button>
+                      <button
+                        onClick={() => { if (confirm(`Deactivate "${f.name}"?`)) deleteMut.mutate(f.id); }}
+                        className="flex items-center justify-center gap-1.5 py-2 px-4 text-xs font-medium border border-red-200 text-red-600 rounded-xl hover:bg-red-50"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-                    <th className="px-5 py-3 text-left">Name</th>
-                    <th className="px-5 py-3 text-left">Code</th>
-                    <th className="px-5 py-3 text-left">Type</th>
-                    <th className="px-5 py-3 text-left">District / Region</th>
-                    <th className="px-5 py-3 text-left">Contact</th>
-                    <th className="px-5 py-3 text-center">Status</th>
-                    {isAdmin && <th className="px-5 py-3" />}
+                  <tr className="bg-gray-50/80 text-gray-500 text-xs uppercase tracking-wider">
+                    <th className="px-5 py-3.5 text-left font-semibold">Name</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Code</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Type</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">District / Region</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Contact</th>
+                    <th className="px-5 py-3.5 text-center font-semibold">Status</th>
+                    {isAdmin && <th className="px-5 py-3.5" />}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {data?.items.map((f) => (
-                    <tr key={f.id} className="hover:bg-gray-50">
-                      <td className="px-5 py-3 font-medium text-gray-900">{f.name}</td>
-                      <td className="px-5 py-3 text-gray-600 font-mono">{f.code}</td>
-                      <td className="px-5 py-3 text-gray-600">{f.type}</td>
-                      <td className="px-5 py-3 text-gray-600">{f.district}, {f.region}</td>
-                      <td className="px-5 py-3 text-gray-600">
+                    <tr key={f.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-3.5 font-medium text-gray-900">{f.name}</td>
+                      <td className="px-5 py-3.5 text-gray-600 font-mono text-xs">{f.code}</td>
+                      <td className="px-5 py-3.5 text-gray-600">{f.type}</td>
+                      <td className="px-5 py-3.5 text-gray-600">{f.district}, {f.region}</td>
+                      <td className="px-5 py-3.5 text-gray-600">
                         <div>{f.contactPerson}</div>
                         <div className="text-xs text-gray-400">{f.phone}</div>
                       </td>
-                      <td className="px-5 py-3 text-center">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${f.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      <td className="px-5 py-3.5 text-center">
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${f.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
                           {f.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       {isAdmin && (
-                        <td className="px-5 py-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => setModal(f)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"><Pencil size={14} /></button>
+                        <td className="px-5 py-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button onClick={() => setModal(f)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600 transition-colors"><Pencil size={14} /></button>
                             <button
                               onClick={() => { if (confirm(`Deactivate "${f.name}"?`)) deleteMut.mutate(f.id); }}
-                              className="p-1.5 hover:bg-red-50 rounded-lg text-red-400"
+                              className="p-2 hover:bg-red-50 rounded-xl text-gray-400 hover:text-red-500 transition-colors"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -222,8 +265,8 @@ export default function Facilities() {
               <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 text-sm text-gray-500">
                 <span>Page {data.page} of {data.totalPages} ({data.totalCount} total)</span>
                 <div className="flex gap-2">
-                  <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="px-3 py-1 border rounded-lg disabled:opacity-40 hover:bg-gray-50">Prev</button>
-                  <button disabled={page === data.totalPages} onClick={() => setPage(p => p + 1)} className="px-3 py-1 border rounded-lg disabled:opacity-40 hover:bg-gray-50">Next</button>
+                  <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="px-3.5 py-1.5 border rounded-xl disabled:opacity-40 hover:bg-gray-50 font-medium transition-colors">Prev</button>
+                  <button disabled={page === data.totalPages} onClick={() => setPage(p => p + 1)} className="px-3.5 py-1.5 border rounded-xl disabled:opacity-40 hover:bg-gray-50 font-medium transition-colors">Next</button>
                 </div>
               </div>
             )}

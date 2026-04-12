@@ -247,12 +247,12 @@ export default function Users() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Users</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage system accounts and roles</p>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Users</h1>
+          <p className="text-sm text-gray-500 mt-0.5 hidden sm:block">Manage system accounts and roles</p>
         </div>
         <button
           onClick={() => setCreateOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 active:bg-blue-800"
+          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white rounded-xl text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all active:scale-[0.98]"
         >
           <Plus size={16} /> New User
         </button>
@@ -264,11 +264,11 @@ export default function Users() {
         placeholder="Search by name, email, or role…"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="w-full sm:w-72 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+        className="w-full sm:w-72 border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white placeholder-gray-400"
       />
 
       {/* Card + Table */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-48 text-gray-400">Loading…</div>
         ) : (
@@ -298,7 +298,7 @@ export default function Users() {
                     </span>
                     <button
                       onClick={() => setEditUser(u)}
-                      className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                      className="flex items-center gap-1 text-xs text-indigo-600 font-medium hover:text-indigo-800 px-2 py-1 rounded-lg hover:bg-indigo-50 transition-colors"
                     >
                       <Pencil size={12} /> Edit
                     </button>
@@ -311,38 +311,38 @@ export default function Users() {
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-                    <th className="px-5 py-3 text-left">Username</th>
-                    <th className="px-5 py-3 text-left">Email</th>
-                    <th className="px-5 py-3 text-left">Role</th>
-                    <th className="px-5 py-3 text-left">Facility</th>
-                    <th className="px-5 py-3 text-center">Status</th>
-                    <th className="px-5 py-3 text-left">Created</th>
-                    <th className="px-5 py-3" />
+                  <tr className="bg-gray-50/80 text-gray-500 text-xs uppercase tracking-wider">
+                    <th className="px-5 py-3.5 text-left font-semibold">Username</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Email</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Role</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Facility</th>
+                    <th className="px-5 py-3.5 text-center font-semibold">Status</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Created</th>
+                    <th className="px-5 py-3.5" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {filtered.map((u) => (
-                    <tr key={u.id} className="hover:bg-gray-50">
-                      <td className="px-5 py-3 font-medium text-gray-900">{u.username}</td>
-                      <td className="px-5 py-3 text-gray-600">{u.email}</td>
-                      <td className="px-5 py-3">
+                    <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-3.5 font-medium text-gray-900">{u.username}</td>
+                      <td className="px-5 py-3.5 text-gray-600">{u.email}</td>
+                      <td className="px-5 py-3.5">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[u.role] ?? 'bg-gray-100 text-gray-500'}`}>
                           {u.role}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-gray-600">{u.facilityName ?? '—'}</td>
-                      <td className="px-5 py-3 text-center">
+                      <td className="px-5 py-3.5 text-gray-600">{u.facilityName ?? '—'}</td>
+                      <td className="px-5 py-3.5 text-center">
                         <span className={`inline-flex items-center gap-1 text-xs font-medium ${u.isActive ? 'text-green-600' : 'text-red-500'}`}>
                           {u.isActive ? <UserCheck size={13} /> : <UserX size={13} />}
                           {u.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-gray-500 text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
-                      <td className="px-5 py-3 text-right">
+                      <td className="px-5 py-3.5 text-gray-500 text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
+                      <td className="px-5 py-3.5 text-right">
                         <button
                           onClick={() => setEditUser(u)}
-                          className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
+                          className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600 transition-colors"
                           title="Edit user"
                         >
                           <Pencil size={14} />

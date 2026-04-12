@@ -179,30 +179,33 @@ export default function Inventory() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Inventory</h1>
+          <p className="text-sm text-gray-500 mt-0.5 hidden sm:block">Stock levels and expiry tracking</p>
+        </div>
         {(isAdmin || isFacilityManager) && (
           <button
             onClick={() => setModal({ type: 'create' })}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all active:scale-[0.98]"
           >
             <Plus size={16} /> Add Record
           </button>
         )}
       </div>
 
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
         {([['all', 'All'], ['low', 'Low Stock'], ['expiry', 'Near Expiry']] as const).map(([key, label]) => (
           <button
             key={key}
             onClick={() => { setTab(key); setPage(1); }}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
             {label}
           </button>
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-48 text-gray-400">Loading…</div>
         ) : (
@@ -262,13 +265,13 @@ export default function Inventory() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => setModal({ type: 'adjust', item: inv })}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 active:bg-gray-100"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium border border-gray-200 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors"
                       >
                         <ArrowUpDown size={13} /> Adjust Stock
                       </button>
                       <button
                         onClick={() => setModal({ type: 'edit', item: inv })}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 active:bg-gray-100"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium border border-gray-200 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors"
                       >
                         <Pencil size={13} /> Edit
                       </button>
@@ -282,20 +285,20 @@ export default function Inventory() {
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-                    <th className="px-5 py-3 text-left">Product</th>
-                    <th className="px-5 py-3 text-left">Facility</th>
-                    <th className="px-5 py-3 text-right">Stock</th>
-                    <th className="px-5 py-3 text-right">Reorder Lvl</th>
-                    <th className="px-5 py-3 text-left">Batch</th>
-                    <th className="px-5 py-3 text-left">Expiry</th>
-                    <th className="px-5 py-3 text-center">Status</th>
-                    {canAdjust && <th className="px-5 py-3" />}
+                  <tr className="bg-gray-50/80 text-gray-500 text-xs uppercase tracking-wider">
+                    <th className="px-5 py-3.5 text-left font-semibold">Product</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Facility</th>
+                    <th className="px-5 py-3.5 text-right font-semibold">Stock</th>
+                    <th className="px-5 py-3.5 text-right font-semibold">Reorder Lvl</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Batch</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Expiry</th>
+                    <th className="px-5 py-3.5 text-center font-semibold">Status</th>
+                    {canAdjust && <th className="px-5 py-3.5" />}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {items.map((inv) => (
-                    <tr key={inv.id} className="hover:bg-gray-50">
+                    <tr key={inv.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-5 py-3 font-medium text-gray-900">{inv.productName}</td>
                       <td className="px-5 py-3 text-gray-600">{inv.facilityName}</td>
                       <td className="px-5 py-3 text-right font-semibold text-gray-900">{inv.currentStock} <span className="text-gray-400 font-normal text-xs">{inv.productUnit}</span></td>
@@ -328,14 +331,14 @@ export default function Inventory() {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => setModal({ type: 'adjust', item: inv })}
-                              className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
+                              className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600 transition-colors"
                               title="Adjust stock"
                             >
                               <ArrowUpDown size={14} />
                             </button>
                             <button
                               onClick={() => setModal({ type: 'edit', item: inv })}
-                              className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
+                              className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600 transition-colors"
                               title="Edit"
                             >
                               ✏️
@@ -355,8 +358,8 @@ export default function Inventory() {
               <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 text-sm text-gray-500">
                 <span>Page {data.page} of {data.totalPages} ({data.totalCount} total)</span>
                 <div className="flex gap-2">
-                  <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="px-3 py-1 border rounded-lg disabled:opacity-40 hover:bg-gray-50">Prev</button>
-                  <button disabled={page === data.totalPages} onClick={() => setPage(p => p + 1)} className="px-3 py-1 border rounded-lg disabled:opacity-40 hover:bg-gray-50">Next</button>
+                  <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="px-3.5 py-1.5 border rounded-xl disabled:opacity-40 hover:bg-gray-50 font-medium transition-colors">Prev</button>
+                  <button disabled={page === data.totalPages} onClick={() => setPage(p => p + 1)} className="px-3.5 py-1.5 border rounded-xl disabled:opacity-40 hover:bg-gray-50 font-medium transition-colors">Next</button>
                 </div>
               </div>
             )}

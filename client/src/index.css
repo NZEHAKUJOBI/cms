@@ -1,7 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply antialiased;
+@layer base {
+  body {
+    @apply antialiased text-gray-800 bg-gray-50;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+}
+
+@layer utilities {
+  /* Custom scrollbar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.4);
+    border-radius: 3px;
+  }
+}
+
+/* Smooth transitions for interactive elements */
+button, a, input, select, textarea {
+  @apply transition-colors duration-150;
+}
+
+/* Focus ring consistency */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  @apply ring-2 ring-indigo-500/40 ring-offset-1 outline-none border-indigo-400;
+}
+
+/* Modal backdrop blur */
+.backdrop-blur-modal {
+  backdrop-filter: blur(4px);
 }

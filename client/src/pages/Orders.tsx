@@ -220,10 +220,13 @@ export default function Orders() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Orders</h1>
+          <p className="text-sm text-gray-500 mt-0.5 hidden sm:block">Manage purchase orders and approvals</p>
+        </div>
         <button
           onClick={() => setCreateModal(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+          className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all active:scale-[0.98]"
         >
           <Plus size={16} /> New Order
         </button>
@@ -234,16 +237,16 @@ export default function Orders() {
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-            className="appearance-none border rounded-lg pl-3 pr-8 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+            className="appearance-none border border-gray-200 rounded-xl pl-3 pr-8 py-2.5 text-sm bg-white"
           >
             <option value="">All statuses</option>
             {ORDER_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-48 text-gray-400">Loading…</div>
         ) : (
@@ -255,15 +258,15 @@ export default function Orders() {
               ) : data.items.map((o) => (
                 <div
                   key={o.id}
-                  className="p-4 cursor-pointer active:bg-gray-50"
+                  className="p-4 cursor-pointer active:bg-gray-50 transition-colors"
                   onClick={() => setSelectedOrder(o)}
                 >
                   <div className="flex items-start justify-between mb-1.5">
                     <div>
-                      <div className="font-mono font-medium text-blue-600">{o.orderNumber}</div>
+                      <div className="font-mono font-medium text-indigo-600">{o.orderNumber}</div>
                       <div className="text-sm text-gray-600 mt-0.5">{o.facilityName}</div>
                     </div>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[o.status] ?? 'bg-gray-100 text-gray-500'}`}>{o.status}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_COLORS[o.status] ?? 'bg-gray-100 text-gray-500'}`}>{o.status}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs text-gray-400">
                     <span>{new Date(o.orderDate).toLocaleDateString()}</span>
@@ -277,26 +280,26 @@ export default function Orders() {
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-                    <th className="px-5 py-3 text-left">Order #</th>
-                    <th className="px-5 py-3 text-left">Facility</th>
-                    <th className="px-5 py-3 text-center">Status</th>
-                    <th className="px-5 py-3 text-left">Date</th>
-                    <th className="px-5 py-3 text-right">Items</th>
-                    <th className="px-5 py-3" />
+                  <tr className="bg-gray-50/80 text-gray-500 text-xs uppercase tracking-wider">
+                    <th className="px-5 py-3.5 text-left font-semibold">Order #</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Facility</th>
+                    <th className="px-5 py-3.5 text-center font-semibold">Status</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Date</th>
+                    <th className="px-5 py-3.5 text-right font-semibold">Items</th>
+                    <th className="px-5 py-3.5" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {data?.items.map((o) => (
-                    <tr key={o.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedOrder(o)}>
-                      <td className="px-5 py-3 font-mono font-medium text-blue-600">{o.orderNumber}</td>
-                      <td className="px-5 py-3 text-gray-700">{o.facilityName}</td>
-                      <td className="px-5 py-3 text-center">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[o.status] ?? 'bg-gray-100 text-gray-500'}`}>{o.status}</span>
+                    <tr key={o.id} className="hover:bg-gray-50/50 cursor-pointer transition-colors" onClick={() => setSelectedOrder(o)}>
+                      <td className="px-5 py-3.5 font-mono font-medium text-indigo-600">{o.orderNumber}</td>
+                      <td className="px-5 py-3.5 text-gray-700">{o.facilityName}</td>
+                      <td className="px-5 py-3.5 text-center">
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[o.status] ?? 'bg-gray-100 text-gray-500'}`}>{o.status}</span>
                       </td>
-                      <td className="px-5 py-3 text-gray-600">{new Date(o.orderDate).toLocaleDateString()}</td>
-                      <td className="px-5 py-3 text-right text-gray-600">{o.orderItems.length}</td>
-                      <td className="px-5 py-3 text-right text-blue-500 text-xs">View →</td>
+                      <td className="px-5 py-3.5 text-gray-600">{new Date(o.orderDate).toLocaleDateString()}</td>
+                      <td className="px-5 py-3.5 text-right text-gray-600">{o.orderItems.length}</td>
+                      <td className="px-5 py-3.5 text-right text-indigo-500 text-xs font-medium">View →</td>
                     </tr>
                   ))}
                   {data?.items.length === 0 && (
@@ -309,8 +312,8 @@ export default function Orders() {
               <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 text-sm text-gray-500">
                 <span>Page {data.page} of {data.totalPages}</span>
                 <div className="flex gap-2">
-                  <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="px-3 py-1 border rounded-lg disabled:opacity-40 hover:bg-gray-50">Prev</button>
-                  <button disabled={page === data.totalPages} onClick={() => setPage(p => p + 1)} className="px-3 py-1 border rounded-lg disabled:opacity-40 hover:bg-gray-50">Next</button>
+                  <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="px-3.5 py-1.5 border rounded-xl disabled:opacity-40 hover:bg-gray-50 font-medium transition-colors">Prev</button>
+                  <button disabled={page === data.totalPages} onClick={() => setPage(p => p + 1)} className="px-3.5 py-1.5 border rounded-xl disabled:opacity-40 hover:bg-gray-50 font-medium transition-colors">Next</button>
                 </div>
               </div>
             )}
