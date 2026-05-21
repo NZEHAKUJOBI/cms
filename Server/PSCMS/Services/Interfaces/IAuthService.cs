@@ -13,4 +13,6 @@ public interface IAuthService
     Task<List<UserDto>> GetFacilityUsersAsync(Guid facilityId);
     Task<UserDto> CreateFacilityUserAsync(CreateUserDto dto, Guid managerFacilityId);
     Task<UserDto?> ToggleFacilityUserAsync(Guid userId, Guid managerFacilityId, bool isActive);
+    Task<(bool Found, string PlainToken)> CreatePasswordResetTokenAsync(string email);
+    Task<bool> ResetPasswordAsync(ResetPasswordDto dto);
 }

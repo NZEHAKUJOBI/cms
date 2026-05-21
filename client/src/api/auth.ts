@@ -20,4 +20,10 @@ export const authApi = {
 
   toggleFacilityUser: (id: string, isActive: boolean) =>
     api.patch<ApiResponse<UserDto>>(`/auth/users/my-facility/${id}`, { isActive }).then((r) => r.data.data),
+
+  forgotPassword: (email: string) =>
+    api.post<ApiResponse<{ resetToken?: string }>>('/auth/forgot-password', { email }).then((r) => r.data),
+
+  resetPassword: (token: string, newPassword: string) =>
+    api.post<ApiResponse<string>>('/auth/reset-password', { token, newPassword }).then((r) => r.data),
 };

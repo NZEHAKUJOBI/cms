@@ -1,0 +1,50 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pscms
+      POSTGRES_PASSWORD: pscms_dev_only
+      POSTGRES_DB: pscms
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pscms']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./Server/PSCMS
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      PSCMS_CONNECTION_STRING: "Host=postgres;Port=5432;Database=pscms;Username=pscms;Password=pscms_dev_only"
+      PSCMS_JWT_KEY: "CHANGE_ME_REPLACE_WITH_A_STRONG_SECRET_AT_LEAST_32_CHARS"
+      PSCMS_ALLOWED_ORIGINS: "http://localhost:5173,http://client"
+    ports:
+      - '5241:8080'
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      VITE_API_URL: http://localhost:5241
+    ports:
+      - '5173:80'
+
+volumes:
+  pgdata:

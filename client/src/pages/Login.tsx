@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '@/context/AuthContext';
 import { authApi } from '@/api/auth';
@@ -27,7 +27,9 @@ export default function Login() {
     try {
       const result = await authApi.login(data);
       login(result);
-      navigate(result.role === 'Admin' ? '/dashboard' : '/inventory', { replace: true });
+      const redirect = sessionStorage.getItem('redirect_after_login');
+      sessionStorage.removeItem('redirect_after_login');
+      navigate(redirect ?? (result.role === 'Admin' ? '/dashboard' : '/inventory'), { replace: true });
     } catch {
       setError('Invalid email or password.');
     } finally {
@@ -100,6 +102,9 @@ export default function Login() {
               'Sign in'
             )}
           </button>
+          <div className="text-center mt-3">
+            <Link to="/forgot-password" className="text-xs text-slate-400 hover:text-indigo-400 transition-colors">Forgot password?</Link>
+          </div>
         </form>
       </div>
     </div>

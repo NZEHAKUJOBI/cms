@@ -5,6 +5,7 @@ import { usersApi } from '@/api/users';
 import { facilitiesApi } from '@/api/facilities';
 import type { CreateUserDto, UpdateUserDto, UserDto } from '@/types';
 import { Plus, X, UserCheck, UserX, Pencil } from 'lucide-react';
+import { toast } from 'sonner';
 
 const ROLES = ['Admin', 'FacilityManager', 'FacilityUser', 'Pharmacist'];
 
@@ -30,7 +31,8 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
 
   const mut = useMutation({
     mutationFn: usersApi.create,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); toast.success('User created'); onClose(); },
+    onError: () => toast.error('Failed to create user'),
   });
 
   return (
@@ -146,7 +148,8 @@ function EditUserModal({ user, onClose }: { user: UserDto; onClose: () => void }
 
   const mut = useMutation({
     mutationFn: (dto: UpdateUserDto) => usersApi.update(user.id, dto),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); toast.success('User updated'); onClose(); },
+    onError: () => toast.error('Failed to update user'),
   });
 
   return (
@@ -318,6 +321,7 @@ export default function Users() {
                     <th className="px-5 py-3.5 text-left font-semibold">Facility</th>
                     <th className="px-5 py-3.5 text-center font-semibold">Status</th>
                     <th className="px-5 py-3.5 text-left font-semibold">Created</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Last Login</th>
                     <th className="px-5 py-3.5" />
                   </tr>
                 </thead>
@@ -339,6 +343,7 @@ export default function Users() {
                         </span>
                       </td>
                       <td className="px-5 py-3.5 text-gray-500 text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
+                      <td className="px-5 py-3.5 text-gray-500 text-xs">{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : <span className="text-gray-400">Never</span>}</td>
                       <td className="px-5 py-3.5 text-right">
                         <button
                           onClick={() => setEditUser(u)}
@@ -352,7 +357,7 @@ export default function Users() {
                   ))}
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-5 py-10 text-center text-gray-400">No users found.</td>
+                      <td colSpan={8} className="px-5 py-10 text-center text-gray-400">No users found.</td>
                     </tr>
                   )}
                 </tbody>

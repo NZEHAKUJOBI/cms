@@ -5,6 +5,7 @@ import { authApi } from '@/api/auth';
 import { useAuth } from '@/context/AuthContext';
 import type { CreateUserDto, UserDto } from '@/types';
 import { Plus, X, UserCheck, UserX, Building2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const ALLOWED_ROLES = ['Pharmacist'] as const;
 
@@ -16,7 +17,8 @@ function CreateUserModal({ facilityName, onClose }: { facilityName: string; onCl
 
   const mut = useMutation({
     mutationFn: authApi.createMyFacilityUser,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['my-facility-users'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['my-facility-users'] }); toast.success('User created'); onClose(); },
+    onError: () => toast.error('Failed to create user'),
   });
 
   return (
@@ -120,7 +122,8 @@ export default function FacilityUsers() {
   const toggleMut = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       authApi.toggleFacilityUser(id, isActive),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['my-facility-users'] }),
+    onSuccess: (_, { isActive }) => { qc.invalidateQueries({ queryKey: ['my-facility-users'] }); toast.success(isActive ? 'User activated' : 'User deactivated'); },
+    onError: () => toast.error('Failed to update user status'),
   });
 
   const facilityName = users[0]?.facilityName ?? user?.username ?? '—';

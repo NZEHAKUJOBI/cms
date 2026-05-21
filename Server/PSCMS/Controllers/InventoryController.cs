@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PSCMS.Common;
+using PSCMS.DTOs.Auth;
 using PSCMS.DTOs.Inventory;
 using PSCMS.Services.Interfaces;
 using System.Security.Claims;
@@ -154,5 +155,22 @@ public class InventoryController : ControllerBase
         }
         var items = await _inventoryService.GetNearExpiryAlertsAsync(withinDays, facilityId);
         return Ok(ApiResponse<List<InventoryDto>>.Ok(items));
+    }
+
+    /// <summary>
+    /// Bulk-import inventory records from a JSON array parsed from a CSV on the client.
+    /// Accepts a JSON body: array of rows with FacilityCode, ProductName, CurrentStock, ReorderLevel, etc.
+    /// </summary>
+    [HttpPost("bulk-import")]
+    [Authorize(Roles = "Admin,FacilityManager")]
+    public async Task<IActionResult> BulkImport([FromBody] List<BulkImportRowDto> rows)
+    {
+        if (rows is null || rows.Count == 0)
+            return BadRequest(ApiResponse<string>.Fail("No rows provided."));
+
+        var uid = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var u) ? u : Guid.Empty;
+        var result = await _inventoryService.BulkImportAsync(rows, uid);
+        return Ok(ApiResponse<BulkImportResultDto>.Ok(result,
+            $"Import complete: {result.Created} created, {result.Updated} updated, {result.Skipped} skipped."));
     }
 }

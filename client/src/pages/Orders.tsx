@@ -7,6 +7,7 @@ import { productsApi } from '@/api/products';
 import { useAuth } from '@/context/AuthContext';
 import type { ApproveOrderDto, CreateOrderDto, OrderDto, RejectOrderDto } from '@/types';
 import { Plus, X, ChevronDown, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const STATUS_COLORS: Record<string, string> = {
   Pending: 'bg-amber-100 text-amber-700',
@@ -30,7 +31,8 @@ function CreateOrderModal({ onClose }: { onClose: () => void }) {
 
   const mut = useMutation({
     mutationFn: ordersApi.create,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['orders'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['orders'] }); toast.success('Order placed'); onClose(); },
+    onError: () => toast.error('Failed to place order'),
   });
 
   return (
@@ -108,15 +110,18 @@ function OrderDetailModal({ order, onClose }: { order: OrderDto; onClose: () => 
 
   const approveMut = useMutation({
     mutationFn: (dto: ApproveOrderDto) => ordersApi.approve(order.id, dto),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['orders'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['orders'] }); toast.success('Order approved'); onClose(); },
+    onError: () => toast.error('Failed to approve order'),
   });
   const rejectMut = useMutation({
     mutationFn: (dto: RejectOrderDto) => ordersApi.reject(order.id, dto),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['orders'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['orders'] }); toast.success('Order rejected'); onClose(); },
+    onError: () => toast.error('Failed to reject order'),
   });
   const cancelMut = useMutation({
     mutationFn: () => ordersApi.cancel(order.id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['orders'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['orders'] }); toast.success('Order cancelled'); onClose(); },
+    onError: () => toast.error('Failed to cancel order'),
   });
 
   return (

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace PSCMS.DTOs.Order;
 
 public class OrderDto
@@ -29,16 +31,27 @@ public class OrderItemDto
 
 public class CreateOrderDto
 {
+    [Required]
     public Guid FacilityId { get; set; }
+
     public DateTime? RequiredDate { get; set; }
+
+    [MaxLength(1000)]
     public string? Notes { get; set; }
+
+    [Required, MinLength(1, ErrorMessage = "At least one order item is required.")]
     public List<CreateOrderItemDto> OrderItems { get; set; } = new();
 }
 
 public class CreateOrderItemDto
 {
+    [Required]
     public Guid ProductId { get; set; }
+
+    [Range(1, 1_000_000)]
     public int RequestedQuantity { get; set; }
+
+    [MaxLength(500)]
     public string? Notes { get; set; }
 }
 
@@ -56,5 +69,6 @@ public class ApproveOrderItemDto
 
 public class RejectOrderDto
 {
+    [Required, MaxLength(1000)]
     public string Reason { get; set; } = string.Empty;
 }

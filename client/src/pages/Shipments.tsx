@@ -7,6 +7,7 @@ import { productsApi } from '@/api/products';
 import { useAuth } from '@/context/AuthContext';
 import type { CreateShipmentDto, ShipmentDto, UpdateShipmentStatusDto } from '@/types';
 import { Plus, X, ChevronDown, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const STATUS_COLORS: Record<string, string> = {
   Prepared: 'bg-blue-100 text-blue-700',
@@ -30,7 +31,8 @@ function CreateShipmentModal({ onClose }: { onClose: () => void }) {
 
   const mut = useMutation({
     mutationFn: shipmentsApi.create,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['shipments'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['shipments'] }); toast.success('Shipment created'); onClose(); },
+    onError: () => toast.error('Failed to create shipment'),
   });
 
   return (
@@ -103,7 +105,8 @@ function UpdateStatusModal({ shipment, onClose }: { shipment: ShipmentDto; onClo
   });
   const mut = useMutation({
     mutationFn: (dto: UpdateShipmentStatusDto) => shipmentsApi.updateStatus(shipment.id, dto),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['shipments'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['shipments'] }); toast.success('Shipment status updated'); onClose(); },
+    onError: () => toast.error('Failed to update shipment status'),
   });
 
   return (

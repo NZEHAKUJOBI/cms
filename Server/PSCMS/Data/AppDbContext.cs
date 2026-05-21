@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<ShipmentItem> ShipmentItems => Set<ShipmentItem>();
     public DbSet<StockLedger> StockLedger => Set<StockLedger>();
     public DbSet<WeeklyStockSnapshot> WeeklyStockSnapshots => Set<WeeklyStockSnapshot>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

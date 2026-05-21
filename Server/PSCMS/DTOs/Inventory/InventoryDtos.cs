@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace PSCMS.DTOs.Inventory;
 
 public class InventoryDto
@@ -20,11 +22,21 @@ public class InventoryDto
 
 public class CreateInventoryDto
 {
+    [Required]
     public Guid FacilityId { get; set; }
+
+    [Required]
     public Guid ProductId { get; set; }
+
+    [Range(0, 10_000_000)]
     public int CurrentStock { get; set; }
+
+    [Range(0, 10_000_000)]
     public int ReorderLevel { get; set; }
+
+    [MaxLength(100)]
     public string? BatchNumber { get; set; }
+
     public DateTime? ExpiryDate { get; set; }
 }
 
@@ -38,14 +50,22 @@ public class UpdateInventoryDto
 
 public class AdjustStockDto
 {
+    [Range(1, 10_000_000)]
     public int Quantity { get; set; }
-    public string AdjustmentType { get; set; } = string.Empty; // "Add" or "Subtract"
+
+    [Required, RegularExpression("^(Add|Subtract)$", ErrorMessage = "AdjustmentType must be 'Add' or 'Subtract'.")]
+    public string AdjustmentType { get; set; } = string.Empty;
+
+    [Required, MaxLength(500)]
     public string Reason { get; set; } = string.Empty;
 }
 
 public class SetStockDto
 {
+    [Range(0, 10_000_000)]
     public int StockOnHand { get; set; }
+
+    [MaxLength(500)]
     public string? Reason { get; set; }
 }
 
@@ -66,4 +86,15 @@ public class WeeklySnapshotDto
     public int StockOnHand { get; set; }
     public DateTime WeekStartDate { get; set; }
     public DateTime RecordedAt { get; set; }
+}
+
+/// <summary>One row from a CSV bulk-import file.</summary>
+public class BulkImportRowDto
+{
+    public string FacilityCode { get; set; } = string.Empty;
+    public string ProductName { get; set; } = string.Empty;
+    public int CurrentStock { get; set; }
+    public int ReorderLevel { get; set; }
+    public string? BatchNumber { get; set; }
+    public DateTime? ExpiryDate { get; set; }
 }

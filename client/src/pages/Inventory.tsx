@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { inventoryApi } from '@/api/inventory';
 import { facilitiesApi } from '@/api/facilities';
 import { productsApi } from '@/api/products';
 import { useAuth } from '@/context/AuthContext';
-import type { AdjustStockDto, CreateInventoryDto, InventoryDto, SetStockDto, StockLedgerDto, UpdateInventoryDto, WeeklySnapshotDto } from '@/types';
-import { Plus, AlertTriangle, Clock, X, ArrowUpDown, Pencil, History, BarChart2 } from 'lucide-react';
+import type { AdjustStockDto, BulkImportResultDto, BulkImportRowDto, CreateInventoryDto, InventoryDto, SetStockDto, StockLedgerDto, UpdateInventoryDto, WeeklySnapshotDto } from '@/types';
+import { Plus, AlertTriangle, Clock, X, ArrowUpDown, Pencil, History, BarChart2, Upload, Download } from 'lucide-react';
+import { toast } from 'sonner';
+import { differenceInDays, parseISO } from 'date-fns';
+import Papa from 'papaparse';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   BarChart, Bar, Legend, ReferenceLine,
@@ -39,11 +42,13 @@ function CreateEditModal({ item, onClose, lockedFacilityId }: { item?: Inventory
 
   const createMut = useMutation({
     mutationFn: inventoryApi.create,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['inventory'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['inventory'] }); toast.success('Inventory record created'); onClose(); },
+    onError: () => toast.error('Failed to create inventory record'),
   });
   const updateMut = useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: UpdateInventoryDto }) => inventoryApi.update(id, dto),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['inventory'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['inventory'] }); toast.success('Inventory updated'); onClose(); },
+    onError: () => toast.error('Failed to update inventory'),
   });
 
   const onSubmit = (data: CreateInventoryDto & UpdateInventoryDto) => {
@@ -132,11 +137,13 @@ function AdjustModal({ item, onClose }: { item: InventoryDto; onClose: () => voi
 
   const adjustMut = useMutation({
     mutationFn: (dto: AdjustStockDto) => inventoryApi.adjustStock(item.id, dto),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['inventory'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['inventory'] }); toast.success('Stock adjusted'); onClose(); },
+    onError: () => toast.error('Failed to adjust stock'),
   });
   const setMut = useMutation({
     mutationFn: (dto: SetStockDto) => inventoryApi.setStock(item.id, dto),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['inventory'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['inventory'] }); toast.success('Stock updated'); onClose(); },
+    onError: () => toast.error('Failed to set stock'),
   });
 
   const isPending = adjustMut.isPending || setMut.isPending;
@@ -237,10 +244,25 @@ function StockHistoryModal({ item, onClose }: { item: InventoryDto; onClose: () 
     queryFn: () => inventoryApi.getStockHistory(item.id, 90),
   });
 
-  const chartData = snapshots.map((s) => ({
-    week: new Date(s.weekStartDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
-    stock: s.stockOnHand,
-  }));
+  // 3-week simple moving average + demand forecast
+  const chartData = snapshots.map((s, i, arr) => {
+    const window = arr.slice(Math.max(0, i - 2), i + 1).map((x) => x.stockOnHand);
+    const avg = Math.round(window.reduce((a, b) => a + b, 0) / window.length);
+    return {
+      week: new Date(s.weekStartDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+      stock: s.stockOnHand,
+      movingAvg: avg,
+    };
+  });
+
+  // Projected demand: mean weekly change over last available weeks
+  const weeklyDeltas = snapshots.slice(1).map((s, i) => snapshots[i].stockOnHand - s.stockOnHand);
+  const avgWeeklyDemand = weeklyDeltas.length > 0
+    ? Math.round(weeklyDeltas.reduce((a, b) => a + b, 0) / weeklyDeltas.length)
+    : 0;
+  const projectedNextWeek = snapshots.length > 0
+    ? Math.max(0, snapshots[snapshots.length - 1].stockOnHand - avgWeeklyDemand)
+    : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -257,7 +279,15 @@ function StockHistoryModal({ item, onClose }: { item: InventoryDto; onClose: () 
         <div className="overflow-y-auto flex-1 p-6 space-y-6">
           {/* Weekly Trend Chart */}
           <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Week-on-Week Stock Trend</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-700">Week-on-Week Stock Trend</h3>
+              {projectedNextWeek !== null && (
+                <span className="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-medium">
+                  Projected next week: ~{projectedNextWeek} {item.productUnit}
+                  {avgWeeklyDemand > 0 && ` (avg demand: ${avgWeeklyDemand}/wk)`}
+                </span>
+              )}
+            </div>
             {chartData.length === 0 ? (
               <div className="h-40 flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-xl">
                 No weekly data yet — data records on each stock update.
@@ -271,16 +301,11 @@ function StockHistoryModal({ item, onClose }: { item: InventoryDto; onClose: () 
                     <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={40} />
                     <Tooltip
                       contentStyle={{ borderRadius: '10px', border: '1px solid #e5e7eb', fontSize: 12 }}
-                      formatter={(v) => [`${v} ${item.productUnit}`, 'Stock on Hand']}
+                      formatter={(v, name) => [`${v} ${item.productUnit}`, name === 'movingAvg' ? '3-wk avg' : 'Stock on Hand']}
                     />
-                    <Line
-                      type="monotone"
-                      dataKey="stock"
-                      stroke="#6366f1"
-                      strokeWidth={2.5}
-                      dot={{ r: 4, fill: '#6366f1', strokeWidth: 0 }}
-                      activeDot={{ r: 6 }}
-                    />
+                    <Legend formatter={(v) => v === 'movingAvg' ? '3-wk moving avg' : 'Stock on Hand'} wrapperStyle={{ fontSize: 11 }} />
+                    <Line type="monotone" dataKey="stock" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 3, fill: '#6366f1', strokeWidth: 0 }} activeDot={{ r: 5 }} name="stock" />
+                    <Line type="monotone" dataKey="movingAvg" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="5 3" name="movingAvg" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -486,12 +511,128 @@ function StockGraphTab({ facilityId: lockedFacilityId }: { facilityId?: string }
   );
 }
 
+function BulkImportModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [rows, setRows] = useState<BulkImportRowDto[]>([]);
+  const [parseError, setParseError] = useState('');
+  const [result, setResult] = useState<BulkImportResultDto | null>(null);
+
+  const importMut = useMutation({
+    mutationFn: () => inventoryApi.bulkImport(rows),
+    onSuccess: (res) => {
+      setResult(res.data ?? null);
+      qc.invalidateQueries({ queryKey: ['inventory'] });
+      if ((res.data?.created ?? 0) + (res.data?.updated ?? 0) > 0)
+        toast.success(`Import complete: ${res.data?.created} created, ${res.data?.updated} updated`);
+    },
+    onError: () => toast.error('Import failed'),
+  });
+
+  const handleFile = (file: File) => {
+    setParseError('');
+    setRows([]);
+    setResult(null);
+    Papa.parse<Record<string, string>>(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (parsed) => {
+        const mapped: BulkImportRowDto[] = parsed.data.map((r) => ({
+          facilityCode: r['FacilityCode'] ?? '',
+          productName: r['ProductName'] ?? '',
+          currentStock: parseInt(r['CurrentStock'] ?? '0', 10),
+          reorderLevel: parseInt(r['ReorderLevel'] ?? '0', 10),
+          batchNumber: r['BatchNumber'] || undefined,
+          expiryDate: r['ExpiryDate'] || undefined,
+        }));
+        if (mapped.length === 0) { setParseError('No rows found in CSV.'); return; }
+        setRows(mapped);
+      },
+      error: (err) => setParseError(err.message),
+    });
+  };
+
+  const downloadTemplate = () => {
+    const csv = 'FacilityCode,ProductName,CurrentStock,ReorderLevel,BatchNumber,ExpiryDate\nFAC001,Paracetamol 500mg,200,50,BATCH-001,2026-12-31\n';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = 'inventory_import_template.csv';
+    a.click();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <h2 className="font-semibold text-gray-900">Bulk Import Inventory</h2>
+          <button onClick={onClose}><X size={18} /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          {!result ? (
+            <>
+              <div
+                onClick={() => fileRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+                className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-colors"
+              >
+                <Upload size={24} className="mx-auto mb-2 text-gray-400" />
+                <p className="text-sm text-gray-600">Drop a CSV file here or <span className="text-indigo-600 font-medium">browse</span></p>
+                <p className="text-xs text-gray-400 mt-1">Columns: FacilityCode, ProductName, CurrentStock, ReorderLevel, BatchNumber (opt), ExpiryDate (opt)</p>
+                <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+              </div>
+              {parseError && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{parseError}</p>}
+              {rows.length > 0 && (
+                <div className="bg-green-50 rounded-lg px-4 py-2.5 text-sm text-green-700 font-medium">
+                  ✓ {rows.length} rows parsed — ready to import
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-2">
+                <button onClick={downloadTemplate} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 transition-colors">
+                  <Download size={13} /> Download template
+                </button>
+                <div className="flex gap-3">
+                  <button onClick={onClose} className="px-4 py-2 text-sm border rounded-xl hover:bg-gray-50">Cancel</button>
+                  <button
+                    onClick={() => importMut.mutate()}
+                    disabled={rows.length === 0 || importMut.isPending}
+                    className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {importMut.isPending ? 'Importing…' : `Import ${rows.length} rows`}
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="bg-green-50 rounded-xl py-4"><p className="text-2xl font-bold text-green-600">{result.created}</p><p className="text-xs text-green-700 mt-0.5">Created</p></div>
+                <div className="bg-blue-50 rounded-xl py-4"><p className="text-2xl font-bold text-blue-600">{result.updated}</p><p className="text-xs text-blue-700 mt-0.5">Updated</p></div>
+                <div className="bg-gray-50 rounded-xl py-4"><p className="text-2xl font-bold text-gray-600">{result.skipped}</p><p className="text-xs text-gray-500 mt-0.5">Skipped</p></div>
+              </div>
+              {result.errors.length > 0 && (
+                <div className="bg-red-50 rounded-xl p-3 max-h-36 overflow-y-auto">
+                  {result.errors.map((e, i) => <p key={i} className="text-xs text-red-700">{e}</p>)}
+                </div>
+              )}
+              <div className="flex justify-end pt-1">
+                <button onClick={onClose} className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-xl hover:bg-indigo-700">Done</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Inventory() {
   const { isAdmin, isFacilityManager, facilityId: authFacilityId, user } = useAuth();
   const canAdjust = isAdmin || ['FacilityManager', 'Pharmacist'].includes(user?.role ?? '');
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState<'all' | 'low' | 'expiry' | 'graph'>('all');
   const [modal, setModal] = useState<ModalState>(null);
+  const [showImport, setShowImport] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['inventory', page, tab],
@@ -513,12 +654,20 @@ export default function Inventory() {
           <p className="text-sm text-gray-500 mt-0.5 hidden sm:block">Stock levels and expiry tracking</p>
         </div>
         {(isAdmin || isFacilityManager) && (
-          <button
-            onClick={() => setModal({ type: 'create' })}
-            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all active:scale-[0.98]"
-          >
-            <Plus size={16} /> Add Record
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-2 border border-gray-300 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition-all"
+            >
+              <Upload size={15} /> Import CSV
+            </button>
+            <button
+              onClick={() => setModal({ type: 'create' })}
+              className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all active:scale-[0.98]"
+            >
+              <Plus size={16} /> Add Record
+            </button>
+          </div>
         )}
       </div>
 
@@ -647,7 +796,17 @@ export default function Inventory() {
                       <td className="px-5 py-3 text-gray-600 font-mono text-xs">{inv.batchNumber ?? '—'}</td>
                       <td className="px-5 py-3 text-gray-600 text-xs">
                         {inv.expiryDate
-                          ? <span className={inv.isNearExpiry ? 'text-orange-600 font-medium' : ''}>{new Date(inv.expiryDate).toLocaleDateString()}</span>
+                          ? (() => {
+                              const days = differenceInDays(parseISO(inv.expiryDate), new Date());
+                              const cls = days < 0
+                                ? 'text-red-700 font-semibold'
+                                : days < 30
+                                  ? 'text-red-600 font-medium'
+                                  : days < 90
+                                    ? 'text-amber-600 font-medium'
+                                    : 'text-gray-600';
+                              return <span className={cls}>{new Date(inv.expiryDate).toLocaleDateString()}{days < 30 && days >= 0 && <span className="ml-1">({days}d)</span>}{days < 0 && <span className="ml-1">(expired)</span>}</span>;
+                            })()
                           : '—'}
                       </td>
                       <td className="px-5 py-3 text-center">
@@ -720,6 +879,7 @@ export default function Inventory() {
       {modal?.type === 'edit' && <CreateEditModal item={modal.item} onClose={() => setModal(null)} />}
       {modal?.type === 'adjust' && <AdjustModal item={modal.item} onClose={() => setModal(null)} />}
       {modal?.type === 'history' && <StockHistoryModal item={modal.item} onClose={() => setModal(null)} />}
+      {showImport && <BulkImportModal onClose={() => setShowImport(false)} />}
     </div>
   );
 }

@@ -1,10 +1,109 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { facilitiesApi } from '@/api/facilities';
 import { useAuth } from '@/context/AuthContext';
 import type { CreateFacilityDto, FacilityDto, UpdateFacilityDto } from '@/types';
-import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, X, Map, List } from 'lucide-react';
+import { toast } from 'sonner';
+
+// Ghana region approximate coordinates for map placement
+const REGION_COORDS: Record<string, [number, number]> = {
+  'Greater Accra': [5.614818, -0.205874],
+  'Ashanti': [6.740656, -1.558669],
+  'Western': [5.093605, -2.288979],
+  'Central': [5.526985, -1.069823],
+  'Eastern': [6.542498, -0.465499],
+  'Volta': [7.903842, 0.488219],
+  'Northern': [9.522889, -0.98577],
+  'Upper East': [10.731085, -0.430587],
+  'Upper West': [10.256396, -2.321665],
+  'Brong-Ahafo': [7.940367, -1.697703],
+  'Oti': [7.903842, 0.488219],
+  'Savannah': [8.7, -1.6],
+  'North East': [10.5, -0.4],
+  'Bono': [7.9, -2.1],
+  'Bono East': [7.75, -1.05],
+  'Ahafo': [7.0, -2.4],
+  'Western North': [6.3, -2.7],
+};
+
+function getCoords(region: string, index: number): [number, number] {
+  const base = REGION_COORDS[region] ?? [7.946527, -1.023194];
+  // Jitter to prevent exact overlap
+  const jitter = index * 0.05;
+  return [base[0] + jitter * Math.sin(index), base[1] + jitter * Math.cos(index)];
+}
+
+function FacilityMap({ facilities }: { facilities: FacilityDto[] }) {
+  const [MapContainer, setMapContainer] = useState<React.ComponentType<any> | null>(null);
+  const [TileLayer, setTileLayer] = useState<React.ComponentType<any> | null>(null);
+  const [Marker, setMarker] = useState<React.ComponentType<any> | null>(null);
+  const [Popup, setPopup] = useState<React.ComponentType<any> | null>(null);
+  const [leafletReady, setLeafletReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      import('react-leaflet'),
+      import('leaflet'),
+      import('leaflet/dist/leaflet.css' as any),
+    ]).then(([rl, L]) => {
+      if (cancelled) return;
+      // Fix default icon paths
+      delete (L.default.Icon.Default.prototype as any)._getIconUrl;
+      L.default.Icon.Default.mergeOptions({
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      });
+      setMapContainer(() => rl.MapContainer);
+      setTileLayer(() => rl.TileLayer);
+      setMarker(() => rl.Marker);
+      setPopup(() => rl.Popup);
+      setLeafletReady(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (!leafletReady || !MapContainer || !TileLayer || !Marker || !Popup) {
+    return <div className="flex items-center justify-center h-96 text-gray-400 text-sm">Loading map…</div>;
+  }
+
+  const regionGroups: Record<string, FacilityDto[]> = {};
+  for (const f of facilities) {
+    const key = f.region ?? 'Unknown';
+    (regionGroups[key] = regionGroups[key] ?? []).push(f);
+  }
+
+  const points: { facility: FacilityDto; coords: [number, number] }[] = [];
+  for (const [region, facs] of Object.entries(regionGroups)) {
+    facs.forEach((f, i) => {
+      points.push({ facility: f, coords: getCoords(region, i) });
+    });
+  }
+
+  return (
+    <MapContainer center={[7.946527, -1.023194]} zoom={7} style={{ height: '520px', width: '100%', borderRadius: '0 0 1rem 1rem' }}>
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      {points.map(({ facility, coords }) => (
+        <Marker key={facility.id} position={coords}>
+          <Popup>
+            <div className="text-sm">
+              <p className="font-semibold text-gray-900">{facility.name}</p>
+              <p className="text-gray-500">{facility.facilityType}</p>
+              <p className="text-gray-500">{facility.district}, {facility.region}</p>
+              {facility.contactPhone && <p className="text-gray-500">{facility.contactPhone}</p>}
+            </div>
+          </Popup>
+        </Marker>
+      ))}
+    </MapContainer>
+  );
+}
 
 const FACILITY_TYPES = ['Hospital', 'HealthCenter', 'Clinic', 'Dispensary', 'Pharmacy'];
 
@@ -30,11 +129,13 @@ function FacilityModal({ facility, onClose }: { facility?: FacilityDto; onClose:
 
   const createMut = useMutation({
     mutationFn: facilitiesApi.create,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['facilities'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['facilities'] }); toast.success('Facility created'); onClose(); },
+    onError: () => toast.error('Failed to create facility'),
   });
   const updateMut = useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: UpdateFacilityDto }) => facilitiesApi.update(id, dto),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['facilities'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['facilities'] }); toast.success('Facility updated'); onClose(); },
+    onError: () => toast.error('Failed to update facility'),
   });
 
   const onSubmit = (data: FormData) => {
@@ -119,6 +220,7 @@ export default function Facilities() {
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [modal, setModal] = useState<'create' | FacilityDto | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
 
   const { data, isLoading } = useQuery({
     queryKey: ['facilities', page, search],
@@ -127,7 +229,8 @@ export default function Facilities() {
 
   const deleteMut = useMutation({
     mutationFn: facilitiesApi.delete,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['facilities'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['facilities'] }); toast.success('Facility deleted'); },
+    onError: () => toast.error('Failed to delete facility'),
   });
 
   const handleSearch = (e: React.FormEvent) => {
@@ -143,14 +246,31 @@ export default function Facilities() {
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Facilities</h1>
           <p className="text-sm text-gray-500 mt-0.5 hidden sm:block">Manage healthcare facilities</p>
         </div>
-        {isAdmin && (
-          <button
-            onClick={() => setModal('create')}
-            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all active:scale-[0.98]"
-          >
-            <Plus size={16} /> Add Facility
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* List / Map toggle */}
+          <div className="flex items-center bg-gray-100 rounded-xl p-1 text-sm">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <List size={14} /> List
+            </button>
+            <button
+              onClick={() => setViewMode('map')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${viewMode === 'map' ? 'bg-white shadow-sm text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <Map size={14} /> Map
+            </button>
+          </div>
+          {isAdmin && (
+            <button
+              onClick={() => setModal('create')}
+              className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all active:scale-[0.98]"
+            >
+              <Plus size={16} /> Add Facility
+            </button>
+          )}
+        </div>
       </div>
 
       <form onSubmit={handleSearch} className="flex gap-2">
@@ -166,6 +286,11 @@ export default function Facilities() {
         <button type="submit" className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium transition-colors">Search</button>
       </form>
 
+      {viewMode === 'map' ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <FacilityMap facilities={facilities?.items ?? []} />
+        </div>
+      ) : (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-48 text-gray-400">Loading…</div>
@@ -273,6 +398,7 @@ export default function Facilities() {
           </>
         )}
       </div>
+      )}  {/* end list/map conditional */}
 
       {modal && (
         <FacilityModal

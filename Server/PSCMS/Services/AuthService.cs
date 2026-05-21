@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -28,6 +29,9 @@ public class AuthService : IAuthService
 
         if (user is null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             return null;
+
+        user.LastLoginAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
 
         return GenerateToken(user);
     }
@@ -84,7 +88,8 @@ public class AuthService : IAuthService
                 FacilityId = u.FacilityId,
                 FacilityName = u.Facility != null ? u.Facility.Name : null,
                 IsActive = u.IsActive,
-                CreatedAt = u.CreatedAt
+                CreatedAt = u.CreatedAt,
+                LastLoginAt = u.LastLoginAt
             })
             .ToListAsync();
     }
@@ -208,7 +213,8 @@ public class AuthService : IAuthService
                 FacilityId = u.FacilityId,
                 FacilityName = u.Facility != null ? u.Facility.Name : null,
                 IsActive = u.IsActive,
-                CreatedAt = u.CreatedAt
+                CreatedAt = u.CreatedAt,
+                LastLoginAt = u.LastLoginAt
             })
             .ToListAsync();
     }
@@ -274,5 +280,54 @@ public class AuthService : IAuthService
             IsActive = user.IsActive,
             CreatedAt = user.CreatedAt
         };
+    }
+
+    /// <summary>
+    /// Creates a password-reset token. In production wire this to email.
+    /// Returns the plain-text token so the caller can log/emit it for dev use.
+    /// </summary>
+    public async Task<(bool Found, string PlainToken)> CreatePasswordResetTokenAsync(string email)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email && u.IsActive);
+        if (user is null) return (false, string.Empty);
+
+        // Invalidate any existing unused tokens
+        var old = await _db.PasswordResetTokens
+            .Where(t => t.UserId == user.Id && !t.IsUsed)
+            .ToListAsync();
+        _db.PasswordResetTokens.RemoveRange(old);
+
+        var plainToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+
+        var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(plainToken)));
+
+        _db.PasswordResetTokens.Add(new PasswordResetToken
+        {
+            UserId = user.Id,
+            TokenHash = tokenHash,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(30),
+        });
+        await _db.SaveChangesAsync();
+
+        return (true, plainToken);
+    }
+
+    public async Task<bool> ResetPasswordAsync(ResetPasswordDto dto)
+    {
+        var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(dto.Token)));
+
+        var record = await _db.PasswordResetTokens
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t => t.TokenHash == tokenHash && !t.IsUsed);
+
+        if (record is null || record.ExpiresAt < DateTime.UtcNow)
+            return false;
+
+        record.User.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+        record.User.UpdatedAt = DateTime.UtcNow;
+        record.IsUsed = true;
+        await _db.SaveChangesAsync();
+        return true;
     }
 }

@@ -1,4 +1,5 @@
 using PSCMS.Common;
+using PSCMS.DTOs.Auth;
 using PSCMS.DTOs.Inventory;
 
 namespace PSCMS.Services.Interfaces;
@@ -16,4 +17,5 @@ public interface IInventoryService
     Task<List<InventoryDto>> GetNearExpiryAlertsAsync(int withinDays = 90, Guid? facilityId = null);
     Task<List<StockLedgerDto>> GetStockHistoryAsync(Guid inventoryId, int days = 90);
     Task<List<WeeklySnapshotDto>> GetWeeklySnapshotsAsync(Guid inventoryId, int weeks = 12);
+    Task<BulkImportResultDto> BulkImportAsync(List<BulkImportRowDto> rows, Guid importedBy);
 }

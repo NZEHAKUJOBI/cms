@@ -1,7 +1,10 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import InstallPrompt from './InstallPrompt';
 import LowStockBanner from './LowStockBanner';
 import { useAuth } from '@/context/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { ordersApi } from '@/api/orders';
+import { notificationsApi } from '@/api/notifications';
 import {
   LayoutDashboard,
   Building2,
@@ -15,8 +18,9 @@ import {
   X,
   Users,
   ChevronRight,
+  Bell,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'FacilityManager'] },
@@ -40,7 +44,48 @@ const bottomNavItems = [
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Pending orders badge count (only for admins)
+  const { data: pendingOrders } = useQuery({
+    queryKey: ['orders-pending-count'],
+    queryFn: () => ordersApi.getAll(1, 1, undefined, 'Pending'),
+    enabled: user?.role === 'Admin',
+    staleTime: 60_000,
+  });
+  const pendingCount = pendingOrders?.totalCount ?? 0;
+
+  // Notification center
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: notificationsApi.getAll,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Breadcrumb mapping
+  const breadcrumbMap: Record<string, string> = {
+    '/dashboard': 'Dashboard',
+    '/facilities': 'Facilities',
+    '/products': 'Products',
+    '/inventory': 'Inventory',
+    '/orders': 'Orders',
+    '/shipments': 'Shipments',
+    '/reports': 'Reports',
+    '/users': 'Users',
+    '/facility-users': 'My Users',
+  };
+  const currentPage = breadcrumbMap[location.pathname] ?? 'PSCMS';
 
   const handleLogout = () => {
     logout();
@@ -152,9 +197,59 @@ export default function Layout() {
             >
               <Menu size={20} />
             </button>
-            <span className="md:hidden font-semibold text-slate-800 tracking-tight">PSCMS</span>
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-1.5 text-sm">
+              <span className="text-gray-400 font-medium hidden md:inline">PSCMS</span>
+              <ChevronRight size={14} className="text-gray-300 hidden md:inline" />
+              <span className="font-semibold text-gray-800">{currentPage}</span>
+            </div>
           </div>
-          <div className="hidden md:flex items-center gap-2 text-sm text-gray-500">
+          <div className="hidden md:flex items-center gap-3 text-sm text-gray-500">
+            {/* Notification Bell */}
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => setNotifOpen((o) => !o)}
+                className="relative p-2 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors"
+              >
+                <Bell size={18} />
+                {notifications.length > 0 && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                )}
+              </button>
+              {notifOpen && (
+                <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-gray-900">Notifications</span>
+                    {notifications.length > 0 && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">{notifications.length}</span>}
+                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-sm text-gray-400">All clear — no alerts right now.</div>
+                  ) : (
+                    <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
+                      {notifications.map((n, i) => {
+                        const colors: Record<string, string> = {
+                          order: 'bg-amber-100 text-amber-700',
+                          stock: 'bg-red-100 text-red-700',
+                          expiry: 'bg-orange-100 text-orange-700',
+                          shipment: 'bg-blue-100 text-blue-700',
+                        };
+                        return (
+                          <div key={i} className="px-4 py-3 hover:bg-gray-50 transition-colors">
+                            <div className="flex items-start gap-3">
+                              <span className={`mt-0.5 text-xs px-1.5 py-0.5 rounded-md font-semibold uppercase tracking-wide ${colors[n.type] ?? 'bg-gray-100 text-gray-600'}`}>{n.type}</span>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{n.title}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">{n.message}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <span>Welcome back,</span>
             <span className="font-medium text-gray-800">{user?.username}</span>
           </div>
@@ -189,8 +284,13 @@ export default function Layout() {
           >
             {({ isActive }) => (
               <>
-                <div className={`p-1 rounded-lg transition-colors ${isActive ? 'bg-indigo-50' : ''}`}>
+                <div className={`relative p-1 rounded-lg transition-colors ${isActive ? 'bg-indigo-50' : ''}`}>
                   <Icon size={20} />
+                  {to === '/orders' && pendingCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                      {pendingCount > 99 ? '99+' : pendingCount}
+                    </span>
+                  )}
                 </div>
                 <span>{label}</span>
               </>

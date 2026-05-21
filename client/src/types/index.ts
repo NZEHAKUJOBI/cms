@@ -50,6 +50,7 @@ export interface UserDto {
   facilityName?: string;
   isActive: boolean;
   createdAt: string;
+  lastLoginAt?: string;
 }
 
 export interface CreateUserDto {
@@ -388,6 +389,33 @@ export interface FacilityDashboardDto {
   categoryBreakdown: CategoryStockDto[];
   topLowStockItems: LowStockAlertItemDto[];
 }
+
+// ─── New features ─────────────────────────────────────────────────────────────
+
+export interface NotificationDto {
+  type: string;
+  title: string;
+  message: string;
+  linkId?: string;
+  createdAt: string;
+}
+
+export interface BulkImportResultDto {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+}
+
+export interface BulkImportRowDto {
+  facilityCode: string;
+  productName: string;
+  currentStock: number;
+  reorderLevel: number;
+  batchNumber?: string;
+  expiryDate?: string;
+}
+
 
 export interface CategoryChartItem {
   category: string;

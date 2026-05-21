@@ -2,6 +2,8 @@ import api from '@/lib/api';
 import type {
   AdjustStockDto,
   ApiResponse,
+  BulkImportResultDto,
+  BulkImportRowDto,
   CreateInventoryDto,
   InventoryDto,
   PagedResult,
@@ -56,4 +58,7 @@ export const inventoryApi = {
     api
       .get<ApiResponse<WeeklySnapshotDto[]>>(`/inventory/${id}/weekly-snapshots`, { params: { weeks } })
       .then((r) => r.data.data),
+
+  bulkImport: (rows: BulkImportRowDto[]) =>
+    api.post<ApiResponse<BulkImportResultDto>>('/inventory/bulk-import', rows).then((r) => r.data),
 };

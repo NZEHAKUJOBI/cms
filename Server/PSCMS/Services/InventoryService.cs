@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PSCMS.Common;
 using PSCMS.Data;
+using PSCMS.DTOs.Auth;
 using PSCMS.DTOs.Inventory;
 using PSCMS.Models;
 using PSCMS.Services.Interfaces;
@@ -268,4 +269,70 @@ public class InventoryService : IInventoryService
         IsNearExpiry = i.ExpiryDate.HasValue && i.ExpiryDate.Value <= DateTime.UtcNow.AddDays(90),
         LastUpdated = i.LastUpdated
     };
+
+    public async Task<BulkImportResultDto> BulkImportAsync(List<BulkImportRowDto> rows, Guid importedBy)
+    {
+        var result = new BulkImportResultDto();
+        var facilities = await _db.Facilities.ToListAsync();
+        var products = await _db.Products.ToListAsync();
+
+        foreach (var (row, index) in rows.Select((r, i) => (r, i + 1)))
+        {
+            try
+            {
+                var facility = facilities.FirstOrDefault(f =>
+                    string.Equals(f.Code, row.FacilityCode, StringComparison.OrdinalIgnoreCase));
+                if (facility is null)
+                {
+                    result.Errors.Add($"Row {index}: Facility code '{row.FacilityCode}' not found.");
+                    result.Skipped++;
+                    continue;
+                }
+
+                var product = products.FirstOrDefault(p =>
+                    string.Equals(p.Name, row.ProductName, StringComparison.OrdinalIgnoreCase));
+                if (product is null)
+                {
+                    result.Errors.Add($"Row {index}: Product '{row.ProductName}' not found.");
+                    result.Skipped++;
+                    continue;
+                }
+
+                var existing = await _db.Inventories
+                    .FirstOrDefaultAsync(i => i.FacilityId == facility.Id && i.ProductId == product.Id);
+
+                if (existing is null)
+                {
+                    _db.Inventories.Add(new Inventory
+                    {
+                        FacilityId = facility.Id,
+                        ProductId = product.Id,
+                        CurrentStock = row.CurrentStock,
+                        ReorderLevel = row.ReorderLevel,
+                        BatchNumber = row.BatchNumber,
+                        ExpiryDate = row.ExpiryDate,
+                        LastUpdated = DateTime.UtcNow
+                    });
+                    result.Created++;
+                }
+                else
+                {
+                    existing.CurrentStock = row.CurrentStock;
+                    existing.ReorderLevel = row.ReorderLevel;
+                    if (row.BatchNumber is not null) existing.BatchNumber = row.BatchNumber;
+                    if (row.ExpiryDate.HasValue) existing.ExpiryDate = row.ExpiryDate;
+                    existing.LastUpdated = DateTime.UtcNow;
+                    result.Updated++;
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Errors.Add($"Row {index}: Unexpected error — {ex.Message}");
+                result.Skipped++;
+            }
+        }
+
+        await _db.SaveChangesAsync();
+        return result;
+    }
 }

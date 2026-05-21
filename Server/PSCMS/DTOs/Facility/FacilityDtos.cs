@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace PSCMS.DTOs.Facility;
 
 public class FacilityDto
@@ -17,13 +19,28 @@ public class FacilityDto
 
 public class CreateFacilityDto
 {
+    [Required, MaxLength(200)]
     public string Name { get; set; } = string.Empty;
+
+    [Required, MaxLength(20)]
     public string Code { get; set; } = string.Empty;
+
+    [Required, MaxLength(50)]
     public string Type { get; set; } = string.Empty;
+
+    [Required, MaxLength(100)]
     public string District { get; set; } = string.Empty;
+
+    [Required, MaxLength(100)]
     public string Region { get; set; } = string.Empty;
+
+    [Required, MaxLength(150)]
     public string ContactPerson { get; set; } = string.Empty;
+
+    [Required, Phone, MaxLength(20)]
     public string Phone { get; set; } = string.Empty;
+
+    [EmailAddress, MaxLength(256)]
     public string? Email { get; set; }
 }
 

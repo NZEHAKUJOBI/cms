@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using PSCMS.Common;
 using PSCMS.DTOs.Auth;
 using PSCMS.Services.Interfaces;
@@ -17,6 +18,7 @@ public class AuthController : ControllerBase
 
     /// <summary>Login and receive a JWT token.</summary>
     [HttpPost("login")]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
         var result = await _authService.LoginAsync(dto);
@@ -26,8 +28,9 @@ public class AuthController : ControllerBase
         return Ok(ApiResponse<AuthResponseDto>.Ok(result, "Login successful."));
     }
 
-    /// <summary>Register a new user (Admin only in production; open here for initial setup).</summary>
+    /// <summary>Register a new user (Admin only).</summary>
     [HttpPost("register")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Register([FromBody] RegisterDto dto)
     {
         try
@@ -141,5 +144,36 @@ public class AuthController : ControllerBase
         var user = await _authService.ToggleFacilityUserAsync(id, facilityId, dto.IsActive);
         if (user is null) return NotFound(ApiResponse<string>.Fail("User not found or not in your facility."));
         return Ok(ApiResponse<UserDto>.Ok(user, "User updated."));
+    }
+
+    /// <summary>
+    /// Request a password-reset token. 
+    /// In production the token is emailed; in development it is returned in the response body for testing.
+    /// </summary>
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+    {
+        var (found, token) = await _authService.CreatePasswordResetTokenAsync(dto.Email);
+
+        // Always return 200 to avoid email enumeration
+        if (!found) return Ok(ApiResponse<string>.Ok(string.Empty, "If that email exists you will receive a reset link shortly."));
+
+        var isDev = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment();
+
+        // In dev expose the token directly; in prod you would email it.
+        return isDev
+            ? Ok(ApiResponse<object>.Ok(new { resetToken = token }, "If that email exists you will receive a reset link shortly."))
+            : Ok(ApiResponse<string>.Ok(string.Empty, "If that email exists you will receive a reset link shortly."));
+    }
+
+    /// <summary>Reset a password using a valid token from forgot-password.</summary>
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+    {
+        var success = await _authService.ResetPasswordAsync(dto);
+        if (!success)
+            return BadRequest(ApiResponse<string>.Fail("Invalid or expired reset token."));
+
+        return Ok(ApiResponse<string>.Ok("Password reset.", "Password reset successfully."));
     }
 }

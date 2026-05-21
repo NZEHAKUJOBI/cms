@@ -5,6 +5,7 @@ import { productsApi } from '@/api/products';
 import { useAuth } from '@/context/AuthContext';
 import type { CreateProductDto, ProductDto, UpdateProductDto } from '@/types';
 import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
+import { toast } from 'sonner';
 
 type FormData = CreateProductDto & { isActive?: boolean };
 
@@ -34,11 +35,13 @@ function ProductModal({
 
   const createMut = useMutation({
     mutationFn: productsApi.create,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); toast.success('Product created'); onClose(); },
+    onError: () => toast.error('Failed to create product'),
   });
   const updateMut = useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: UpdateProductDto }) => productsApi.update(id, dto),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); toast.success('Product updated'); onClose(); },
+    onError: () => toast.error('Failed to update product'),
   });
 
   const onSubmit = (data: FormData) => {
@@ -128,7 +131,8 @@ export default function Products() {
 
   const deleteMut = useMutation({
     mutationFn: productsApi.delete,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); toast.success('Product deleted'); },
+    onError: () => toast.error('Failed to delete product'),
   });
 
   const handleSearch = (e: React.FormEvent) => {
