@@ -29,6 +29,9 @@ function ProductModal({
           minimumStockLevel: product.minimumStockLevel,
           description: product.description ?? '',
           isActive: product.isActive,
+          requiresColdChain: product.requiresColdChain ?? false,
+          storageTemperatureMin: product.storageTemperatureMin,
+          storageTemperatureMax: product.storageTemperatureMax,
         }
       : undefined,
   });
@@ -103,6 +106,22 @@ function ProductModal({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
             <textarea rows={2} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none" {...register('description')} />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="requiresColdChain" {...register('requiresColdChain')} className="w-4 h-4" />
+              <label htmlFor="requiresColdChain" className="text-sm font-medium text-gray-700">🧊 Requires Cold Chain</label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Min Storage Temp (°C)</label>
+                <input type="number" step="0.1" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g. 2" {...register('storageTemperatureMin', { valueAsNumber: true })} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Max Storage Temp (°C)</label>
+                <input type="number" step="0.1" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g. 8" {...register('storageTemperatureMax', { valueAsNumber: true })} />
+              </div>
+            </div>
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
@@ -196,6 +215,7 @@ export default function Products() {
                     <span className="px-2 py-0.5 bg-gray-100 rounded-md text-gray-600">{p.dosageForm} {p.strength}</span>
                     <span className="px-2 py-0.5 bg-gray-100 rounded-md text-gray-600">{p.unit}</span>
                     <span className="px-2 py-0.5 bg-indigo-50 rounded-md text-indigo-600">Min: {p.minimumStockLevel}</span>
+                    {p.requiresColdChain && <span className="px-2 py-0.5 bg-blue-50 rounded-md text-blue-600">🧊 Cold Chain</span>}
                   </div>
                   {isAdmin && (
                     <div className="flex gap-2 pt-1">

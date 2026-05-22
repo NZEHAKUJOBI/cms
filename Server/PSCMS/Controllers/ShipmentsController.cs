@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PSCMS.Common;
+using PSCMS.DTOs.GRN;
 using PSCMS.DTOs.Shipment;
 using PSCMS.Services.Interfaces;
 using System.Security.Claims;
@@ -68,6 +69,23 @@ public class ShipmentsController : ControllerBase
             var shipment = await _shipmentService.UpdateStatusAsync(id, dto);
             if (shipment is null) return NotFound(ApiResponse<string>.Fail("Shipment not found."));
             return Ok(ApiResponse<ShipmentDto>.Ok(shipment, "Shipment status updated."));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<string>.Fail(ex.Message));
+        }
+    }
+
+    /// <summary>Submit a Goods Receipt Note (GRN) for inspection. Automatically marks shipment as Received and updates inventory.</summary>
+    [HttpPost("{id:guid}/grn")]
+    [Authorize(Roles = "Admin,FacilityManager,Pharmacist")]
+    public async Task<IActionResult> SubmitGrn(Guid id, [FromBody] SubmitGrnDto dto)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        try
+        {
+            var grn = await _shipmentService.SubmitGrnAsync(id, dto, userId);
+            return Ok(ApiResponse<GrnDto>.Ok(grn, "GRN submitted successfully. Inventory updated."));
         }
         catch (InvalidOperationException ex)
         {

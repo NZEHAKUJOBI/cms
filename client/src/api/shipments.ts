@@ -2,8 +2,10 @@ import api from '@/lib/api';
 import type {
   ApiResponse,
   CreateShipmentDto,
+  GrnDto,
   PagedResult,
   ShipmentDto,
+  SubmitGrnDto,
   UpdateShipmentStatusDto,
 } from '@/types';
 
@@ -23,4 +25,7 @@ export const shipmentsApi = {
 
   updateStatus: (id: string, dto: UpdateShipmentStatusDto) =>
     api.patch<ApiResponse<ShipmentDto>>(`/shipments/${id}/status`, dto).then((r) => r.data.data),
+
+  submitGrn: (id: string, dto: SubmitGrnDto) =>
+    api.post<ApiResponse<GrnDto>>(`/shipments/${id}/grn`, dto).then((r) => r.data.data),
 };

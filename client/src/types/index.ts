@@ -78,6 +78,9 @@ export interface ProductDto {
   unit: string;
   minimumStockLevel: number;
   description?: string;
+  requiresColdChain: boolean;
+  storageTemperatureMin?: number;
+  storageTemperatureMax?: number;
   isActive: boolean;
   createdAt: string;
 }
@@ -91,6 +94,9 @@ export interface CreateProductDto {
   unit: string;
   minimumStockLevel: number;
   description?: string;
+  requiresColdChain?: boolean;
+  storageTemperatureMin?: number;
+  storageTemperatureMax?: number;
 }
 
 export interface UpdateProductDto {
@@ -103,6 +109,9 @@ export interface UpdateProductDto {
   minimumStockLevel?: number;
   description?: string;
   isActive?: boolean;
+  requiresColdChain?: boolean;
+  storageTemperatureMin?: number;
+  storageTemperatureMax?: number;
 }
 
 // ─── Facility ─────────────────────────────────────────────────────────────────
@@ -441,4 +450,136 @@ export interface DrugChartDataDto {
   totalDrugs: number;
   activeDrugs: number;
   inactiveDrugs: number;
+}
+
+// ─── Cold Chain (extended Product fields) ────────────────────────────────────
+// ProductDto already extended in backend; add here for TS awareness
+declare module './index' {}
+
+// ─── Demand Forecasting ───────────────────────────────────────────────────────
+export interface DemandForecastDto {
+  inventoryId: string;
+  productName: string;
+  facilityName: string;
+  currentStock: number;
+  reorderLevel: number;
+  avgWeeklyConsumption: number;
+  weeksUntilStockout: number | null;
+  forecastedStockIn4Weeks: number;
+  suggestedReorderQuantity: number;
+  riskLevel: 'Critical' | 'Warning' | 'OK';
+  snapshots: WeeklySnapshotDto[];
+  modelUsed: 'SSA' | 'Average';
+  forecastedWeeklyDemand: number[];
+  confidenceLower: number[];
+  confidenceUpper: number[];
+}
+
+export interface RiskItemDto {
+  inventoryId: string;
+  productName: string;
+  facilityName: string;
+  currentStock: number;
+  reorderLevel: number;
+  avgWeeklyConsumption: number;
+  weeksUntilStockout: number | null;
+  riskLevel: 'Critical' | 'Warning' | 'OK';
+}
+
+export interface RiskSummaryDto {
+  criticalCount: number;
+  warningCount: number;
+  okCount: number;
+  totalItems: number;
+  topRiskItems: RiskItemDto[];
+}
+
+// ─── GRN (Goods Receipt Note) ─────────────────────────────────────────────────
+export interface GrnItemDto {
+  id: string;
+  productId: string;
+  productName: string;
+  expectedQuantity: number;
+  receivedQuantity: number;
+  condition: 'Good' | 'Damaged' | 'Expired';
+  batchNumber?: string;
+  expiryDate?: string;
+  notes?: string;
+}
+
+export interface GrnDto {
+  id: string;
+  grnNumber: string;
+  shipmentId: string;
+  shipmentNumber: string;
+  facilityId: string;
+  facilityName: string;
+  status: 'Accepted' | 'PartiallyAccepted' | 'Rejected';
+  overallNotes?: string;
+  inspectedByName: string;
+  inspectedAt: string;
+  items: GrnItemDto[];
+}
+
+export interface SubmitGrnItemDto {
+  productId: string;
+  expectedQuantity: number;
+  receivedQuantity: number;
+  condition: 'Good' | 'Damaged' | 'Expired';
+  batchNumber?: string;
+  expiryDate?: string;
+  notes?: string;
+}
+
+export interface SubmitGrnDto {
+  overallNotes?: string;
+  items: SubmitGrnItemDto[];
+}
+
+// ─── Stock Transfer ───────────────────────────────────────────────────────────
+export interface StockTransferItemDto {
+  id: string;
+  productId: string;
+  productName: string;
+  productUnit: string;
+  quantity: number;
+  batchNumber?: string;
+  expiryDate?: string;
+  notes?: string;
+}
+
+export interface StockTransferDto {
+  id: string;
+  transferNumber: string;
+  sourceFacilityId: string;
+  sourceFacilityName: string;
+  destinationFacilityId: string;
+  destinationFacilityName: string;
+  status: 'Pending' | 'Approved' | 'InTransit' | 'Completed' | 'Cancelled';
+  transferDate: string;
+  notes?: string;
+  requestedByName: string;
+  approvedByName?: string;
+  createdAt: string;
+  items: StockTransferItemDto[];
+}
+
+export interface CreateStockTransferItemDto {
+  productId: string;
+  quantity: number;
+  batchNumber?: string;
+  expiryDate?: string;
+  notes?: string;
+}
+
+export interface CreateStockTransferDto {
+  sourceFacilityId: string;
+  destinationFacilityId: string;
+  notes?: string;
+  items: CreateStockTransferItemDto[];
+}
+
+export interface UpdateTransferStatusDto {
+  status: 'Approved' | 'InTransit' | 'Completed' | 'Cancelled';
+  notes?: string;
 }

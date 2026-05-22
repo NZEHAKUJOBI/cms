@@ -6,13 +6,13 @@ import { facilitiesApi } from '@/api/facilities';
 import { productsApi } from '@/api/products';
 import { useAuth } from '@/context/AuthContext';
 import type { AdjustStockDto, BulkImportResultDto, BulkImportRowDto, CreateInventoryDto, InventoryDto, SetStockDto, StockLedgerDto, UpdateInventoryDto, WeeklySnapshotDto } from '@/types';
-import { Plus, AlertTriangle, Clock, X, ArrowUpDown, Pencil, History, BarChart2, Upload, Download } from 'lucide-react';
+import { Plus, AlertTriangle, Clock, X, ArrowUpDown, Pencil, History, BarChart2, Upload, Download, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { differenceInDays, parseISO } from 'date-fns';
 import Papa from 'papaparse';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  BarChart, Bar, Legend, ReferenceLine,
+  BarChart, Bar, Legend, ReferenceLine, ComposedChart, Area,
 } from 'recharts';
 
 type ModalState =
@@ -626,6 +626,165 @@ function BulkImportModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+const RISK_COLORS = {
+  Critical: 'bg-red-100 text-red-700',
+  Warning: 'bg-amber-100 text-amber-700',
+  OK: 'bg-green-100 text-green-700',
+};
+
+function ForecastModal({ item, onClose }: { item: InventoryDto; onClose: () => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['forecast', item.id],
+    queryFn: () => inventoryApi.getForecast(item.id),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-2xl shadow-xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <TrendingUp size={18} className="text-green-600" />
+            <h2 className="font-semibold text-gray-900">Demand Forecast — {item.productName}</h2>
+          </div>
+          <button onClick={onClose}><X size={18} /></button>
+        </div>
+        <div className="p-6 overflow-y-auto flex-1">
+          {isLoading ? (
+            <div className="text-center text-gray-400 py-8">Loading forecast…</div>
+          ) : !data ? (
+            <div className="text-center text-gray-400 py-8">No forecast data available.</div>
+          ) : (
+            <div className="space-y-5">
+              <div className="flex flex-wrap gap-3">
+                <div className="flex-1 min-w-[130px] bg-gray-50 rounded-xl p-3">
+                  <div className="text-xs text-gray-500 mb-1">Current Stock</div>
+                  <div className="text-2xl font-bold text-gray-900">{data.currentStock}</div>
+                  <div className="text-xs text-gray-400">{item.productUnit}</div>
+                </div>
+                <div className="flex-1 min-w-[130px] bg-gray-50 rounded-xl p-3">
+                  <div className="text-xs text-gray-500 mb-1">Avg Weekly Use</div>
+                  <div className="text-2xl font-bold text-gray-900">{data.avgWeeklyConsumption.toFixed(1)}</div>
+                  <div className="text-xs text-gray-400">{item.productUnit}/week</div>
+                </div>
+                <div className="flex-1 min-w-[130px] bg-gray-50 rounded-xl p-3">
+                  <div className="text-xs text-gray-500 mb-1">Weeks to Stockout</div>
+                  <div className="text-2xl font-bold text-gray-900">{data.weeksUntilStockout == null ? '∞' : data.weeksUntilStockout.toFixed(1)}</div>
+                  <div className="text-xs text-gray-400">weeks</div>
+                </div>
+                <div className="flex-1 min-w-[130px] bg-gray-50 rounded-xl p-3">
+                  <div className="text-xs text-gray-500 mb-1">Forecast in 4 Weeks</div>
+                  <div className="text-2xl font-bold text-gray-900">{data.forecastedStockIn4Weeks.toFixed(0)}</div>
+                  <div className="text-xs text-gray-400">{item.productUnit}</div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${RISK_COLORS[data.riskLevel]}`}>
+                  {data.riskLevel} Risk
+                </span>
+                <span className="text-sm text-gray-600">
+                  Suggested reorder: <strong>{data.suggestedReorderQuantity > 0 ? data.suggestedReorderQuantity : 'Not needed'}</strong> {data.suggestedReorderQuantity > 0 ? item.productUnit : ''}
+                </span>
+              </div>
+
+              {/* Model badge */}
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                  data.modelUsed === 'SSA'
+                    ? 'bg-purple-100 text-purple-700'
+                    : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {data.modelUsed === 'SSA' ? '🤖 ML · SSA Forecasting' : '📊 Simple Average'}
+                </span>
+                {data.modelUsed === 'Average' && (
+                  <span className="text-xs text-gray-400">Collect ≥8 weekly snapshots to enable ML</span>
+                )}
+              </div>
+
+              {/* Combined historical + forecast chart */}
+              {(() => {
+                const historical = [...data.snapshots].reverse().map(s => ({
+                  week: new Date(s.weekStartDate).toLocaleDateString('en', { month: 'short', day: 'numeric' }),
+                  historicalStock: s.stockOnHand,
+                  forecastStock: undefined as number | undefined,
+                  lower: undefined as number | undefined,
+                  upper: undefined as number | undefined,
+                }));
+
+                // Project stock forward using forecasted weekly demand
+                const forecastPoints = data.forecastedWeeklyDemand.map((_demand, i) => {
+                  const cumDemand = data.forecastedWeeklyDemand.slice(0, i + 1).reduce((a, b) => a + b, 0);
+                  const cumLower = data.confidenceLower.slice(0, i + 1).reduce((a, b) => a + b, 0);
+                  const cumUpper = data.confidenceUpper.slice(0, i + 1).reduce((a, b) => a + b, 0);
+                  return {
+                    week: `Wk+${i + 1}`,
+                    historicalStock: undefined as number | undefined,
+                    forecastStock: Math.max(0, Math.round(data.currentStock - cumDemand)),
+                    lower: Math.max(0, Math.round(data.currentStock - cumUpper)),
+                    upper: Math.max(0, Math.round(data.currentStock - cumLower)),
+                  };
+                });
+
+                // Join point — last historical into first forecast
+                const joinPoint = historical.length > 0 ? {
+                  week: historical[historical.length - 1].week,
+                  historicalStock: historical[historical.length - 1].historicalStock,
+                  forecastStock: historical[historical.length - 1].historicalStock,
+                  lower: historical[historical.length - 1].historicalStock,
+                  upper: historical[historical.length - 1].historicalStock,
+                } : null;
+
+                const chartData = [
+                  ...historical,
+                  ...(joinPoint ? [joinPoint] : []),
+                  ...forecastPoints,
+                ];
+
+                if (chartData.length < 2) {
+                  return <p className="text-sm text-gray-400 italic">Not enough historical data. Weekly snapshots will populate over time.</p>;
+                }
+
+                return (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Stock History &amp; ML Forecast</h3>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <ComposedChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="week" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} />
+                        <Tooltip formatter={(v, name) => [
+                          v,
+                          name === 'historicalStock' ? 'Actual Stock'
+                            : name === 'forecastStock' ? 'Forecast'
+                            : name === 'upper' ? 'Upper 95% CI'
+                            : 'Lower 95% CI',
+                        ]} />
+                        <Legend formatter={(v) => v === 'historicalStock' ? 'Actual Stock' : v === 'forecastStock' ? 'Forecast (ML)' : undefined} />
+                        {/* Confidence band */}
+                        <Area type="monotone" dataKey="upper" stroke="none" fill="#a855f7" fillOpacity={0.12} legendType="none" />
+                        <Area type="monotone" dataKey="lower" stroke="none" fill="#ffffff" fillOpacity={1} legendType="none" />
+                        {/* Reorder level reference */}
+                        <ReferenceLine y={data.reorderLevel} stroke="#f97316" strokeDasharray="4 4" label={{ value: 'Reorder', position: 'insideTopLeft', fontSize: 10, fill: '#f97316' }} />
+                        <Line type="monotone" dataKey="historicalStock" stroke="#3b82f6" strokeWidth={2} dot={false} connectNulls={false} />
+                        <Line type="monotone" dataKey="forecastStock" stroke="#a855f7" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                    <div className="flex items-center gap-4 text-xs text-gray-400 mt-1 justify-end">
+                      <span className="flex items-center gap-1"><span className="inline-block w-6 h-0.5 bg-blue-500"></span> Actual</span>
+                      <span className="flex items-center gap-1"><span className="inline-block w-6 h-0.5 bg-purple-500 border-dashed border-t-2 border-purple-500"></span> Forecast</span>
+                      <span className="flex items-center gap-1"><span className="inline-block w-4 h-3 bg-purple-200 opacity-60 rounded-sm"></span> 95% CI</span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Inventory() {
   const { isAdmin, isFacilityManager, facilityId: authFacilityId, user } = useAuth();
   const canAdjust = isAdmin || ['FacilityManager', 'Pharmacist'].includes(user?.role ?? '');
@@ -633,6 +792,7 @@ export default function Inventory() {
   const [tab, setTab] = useState<'all' | 'low' | 'expiry' | 'graph'>('all');
   const [modal, setModal] = useState<ModalState>(null);
   const [showImport, setShowImport] = useState(false);
+  const [forecastItem, setForecastItem] = useState<InventoryDto | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['inventory', page, tab],
@@ -844,6 +1004,13 @@ export default function Inventory() {
                               <History size={14} />
                             </button>
                             <button
+                              onClick={() => setForecastItem(inv)}
+                              className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-green-600 transition-colors"
+                              title="Demand forecast"
+                            >
+                              <TrendingUp size={14} />
+                            </button>
+                            <button
                               onClick={() => setModal({ type: 'edit', item: inv })}
                               className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600 transition-colors"
                               title="Edit"
@@ -880,6 +1047,7 @@ export default function Inventory() {
       {modal?.type === 'adjust' && <AdjustModal item={modal.item} onClose={() => setModal(null)} />}
       {modal?.type === 'history' && <StockHistoryModal item={modal.item} onClose={() => setModal(null)} />}
       {showImport && <BulkImportModal onClose={() => setShowImport(false)} />}
+      {forecastItem && <ForecastModal item={forecastItem} onClose={() => setForecastItem(null)} />}
     </div>
   );
 }

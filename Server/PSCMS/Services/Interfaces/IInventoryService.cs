@@ -18,4 +18,6 @@ public interface IInventoryService
     Task<List<StockLedgerDto>> GetStockHistoryAsync(Guid inventoryId, int days = 90);
     Task<List<WeeklySnapshotDto>> GetWeeklySnapshotsAsync(Guid inventoryId, int weeks = 12);
     Task<BulkImportResultDto> BulkImportAsync(List<BulkImportRowDto> rows, Guid importedBy);
+    Task<DemandForecastDto?> GetForecastAsync(Guid inventoryId, int weeks = 12);
+    Task<RiskSummaryDto> GetRiskSummaryAsync(Guid? facilityId = null);
 }

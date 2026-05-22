@@ -101,6 +101,7 @@ try
     builder.Services.AddScoped<IOrderService, OrderService>();
     builder.Services.AddScoped<IShipmentService, ShipmentService>();
     builder.Services.AddScoped<IReportService, ReportService>();
+    builder.Services.AddScoped<ITransferService, TransferService>();
 
     // ── Controllers ───────────────────────────────────────────────────────────
     builder.Services.AddControllers();

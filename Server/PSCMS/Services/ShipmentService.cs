@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PSCMS.Common;
 using PSCMS.Data;
+using PSCMS.DTOs.GRN;
 using PSCMS.DTOs.Shipment;
 using PSCMS.Models;
 using PSCMS.Services.Interfaces;
@@ -164,6 +165,144 @@ public class ShipmentService : IShipmentService
             Quantity = si.Quantity,
             BatchNumber = si.BatchNumber,
             ExpiryDate = si.ExpiryDate
+        }).ToList()
+    };
+
+    public async Task<GrnDto> SubmitGrnAsync(Guid shipmentId, SubmitGrnDto dto, Guid inspectedBy)
+    {
+        var shipment = await _db.Shipments
+            .Include(s => s.ShipmentItems)
+            .FirstOrDefaultAsync(s => s.Id == shipmentId)
+            ?? throw new InvalidOperationException("Shipment not found.");
+
+        if (shipment.Status != ShipmentStatus.Delivered && shipment.Status != ShipmentStatus.InTransit)
+            throw new InvalidOperationException("GRN can only be submitted for shipments in Delivered or InTransit status.");
+
+        if (await _db.GoodsReceiptNotes.AnyAsync(g => g.ShipmentId == shipmentId))
+            throw new InvalidOperationException("A GRN has already been submitted for this shipment.");
+
+        var allDamaged = dto.Items.All(i => i.Condition != "Good" || i.ReceivedQuantity == 0);
+        var anyGood = dto.Items.Any(i => i.Condition == "Good" && i.ReceivedQuantity > 0);
+        var allGood = dto.Items.All(i => i.Condition == "Good" && i.ReceivedQuantity > 0);
+
+        var grnStatus = allGood ? GrnStatus.Accepted
+            : anyGood ? GrnStatus.PartiallyAccepted
+            : GrnStatus.Rejected;
+
+        var grnNumber = $"GRN-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..6].ToUpper()}";
+
+        var grn = new GoodsReceiptNote
+        {
+            GrnNumber = grnNumber,
+            ShipmentId = shipmentId,
+            FacilityId = shipment.FacilityId,
+            Status = grnStatus,
+            OverallNotes = dto.OverallNotes,
+            InspectedBy = inspectedBy,
+            Items = dto.Items.Select(i => new GoodsReceiptNoteItem
+            {
+                ProductId = i.ProductId,
+                ExpectedQuantity = i.ExpectedQuantity,
+                ReceivedQuantity = i.ReceivedQuantity,
+                Condition = i.Condition,
+                BatchNumber = i.BatchNumber,
+                ExpiryDate = i.ExpiryDate.HasValue ? DateTime.SpecifyKind(i.ExpiryDate.Value, DateTimeKind.Utc) : null,
+                Notes = i.Notes
+            }).ToList()
+        };
+
+        _db.GoodsReceiptNotes.Add(grn);
+
+        // Only update inventory for Good items with received quantity > 0
+        if (grnStatus != GrnStatus.Rejected)
+        {
+            await _db.SaveChangesAsync(); // persist GRN first to satisfy FK
+
+            foreach (var item in grn.Items.Where(i => i.Condition == "Good" && i.ReceivedQuantity > 0))
+            {
+                var inv = await _db.Inventories
+                    .FirstOrDefaultAsync(i => i.FacilityId == shipment.FacilityId && i.ProductId == item.ProductId);
+
+                int previousStock = 0;
+                if (inv is not null)
+                {
+                    previousStock = inv.CurrentStock;
+                    inv.CurrentStock += item.ReceivedQuantity;
+                    if (item.BatchNumber is not null) inv.BatchNumber = item.BatchNumber;
+                    if (item.ExpiryDate.HasValue) inv.ExpiryDate = item.ExpiryDate;
+                    inv.LastUpdated = DateTime.UtcNow;
+                }
+                else
+                {
+                    inv = new Inventory
+                    {
+                        FacilityId = shipment.FacilityId,
+                        ProductId = item.ProductId,
+                        CurrentStock = item.ReceivedQuantity,
+                        ReorderLevel = 0,
+                        BatchNumber = item.BatchNumber,
+                        ExpiryDate = item.ExpiryDate
+                    };
+                    _db.Inventories.Add(inv);
+                    await _db.SaveChangesAsync(); // persist so Id is available
+                }
+
+                _db.StockLedger.Add(new StockLedger
+                {
+                    InventoryId = inv.Id,
+                    FacilityId = inv.FacilityId,
+                    ProductId = inv.ProductId,
+                    PreviousStock = previousStock,
+                    NewStock = previousStock + item.ReceivedQuantity,
+                    ChangeAmount = item.ReceivedQuantity,
+                    ChangeType = "Add",
+                    Reason = $"GRN {grnNumber}",
+                    ChangedBy = inspectedBy,
+                    ChangedAt = DateTime.UtcNow
+                });
+            }
+        }
+
+        shipment.Status = ShipmentStatus.Received;
+        shipment.ActualDeliveryDate ??= DateTime.UtcNow;
+        shipment.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        // Reload grn with full navigation
+        var saved = await _db.GoodsReceiptNotes
+            .Include(g => g.Facility)
+            .Include(g => g.Shipment)
+            .Include(g => g.Items).ThenInclude(i => i.Product)
+            .FirstAsync(g => g.Id == grn.Id);
+
+        return ToGrnDto(saved);
+    }
+
+    private static GrnDto ToGrnDto(GoodsReceiptNote g) => new()
+    {
+        Id = g.Id,
+        GrnNumber = g.GrnNumber,
+        ShipmentId = g.ShipmentId,
+        ShipmentNumber = g.Shipment?.ShipmentNumber ?? string.Empty,
+        FacilityId = g.FacilityId,
+        FacilityName = g.Facility?.Name ?? string.Empty,
+        Status = g.Status.ToString(),
+        OverallNotes = g.OverallNotes,
+        InspectedAt = g.InspectedAt,
+        CreatedAt = g.CreatedAt,
+        Items = g.Items.Select(i => new GrnItemDto
+        {
+            Id = i.Id,
+            ProductId = i.ProductId,
+            ProductName = i.Product?.Name ?? string.Empty,
+            ProductUnit = i.Product?.Unit ?? string.Empty,
+            ExpectedQuantity = i.ExpectedQuantity,
+            ReceivedQuantity = i.ReceivedQuantity,
+            Condition = i.Condition,
+            BatchNumber = i.BatchNumber,
+            ExpiryDate = i.ExpiryDate,
+            Notes = i.Notes
         }).ToList()
     };
 }

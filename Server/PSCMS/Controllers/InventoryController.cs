@@ -130,6 +130,28 @@ public class InventoryController : ControllerBase
         return Ok(ApiResponse<List<WeeklySnapshotDto>>.Ok(snapshots));
     }
 
+    /// <summary>Get demand forecast for an inventory record based on historical weekly snapshots.</summary>
+    [HttpGet("{id:guid}/forecast")]
+    public async Task<IActionResult> GetForecast(Guid id, [FromQuery] int weeks = 12)
+    {
+        var forecast = await _inventoryService.GetForecastAsync(id, weeks);
+        if (forecast is null) return NotFound(ApiResponse<string>.Fail("Inventory record not found."));
+        return Ok(ApiResponse<DemandForecastDto>.Ok(forecast));
+    }
+
+    /// <summary>Get a demand risk summary across all (or facility-scoped) inventory items.</summary>
+    [HttpGet("risk-summary")]
+    public async Task<IActionResult> GetRiskSummary([FromQuery] Guid? facilityId = null)
+    {
+        if (User.IsInRole("FacilityManager"))
+        {
+            if (Guid.TryParse(User.FindFirstValue("facilityId"), out var fmId))
+                facilityId = fmId;
+        }
+        var summary = await _inventoryService.GetRiskSummaryAsync(facilityId);
+        return Ok(ApiResponse<RiskSummaryDto>.Ok(summary));
+    }
+
     /// <summary>Get all low-stock alerts. FacilityManager auto-scoped.</summary>
     [HttpGet("alerts/low-stock")]
     public async Task<IActionResult> LowStockAlerts([FromQuery] Guid? facilityId = null)

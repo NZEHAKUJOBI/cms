@@ -88,7 +88,6 @@ public class WeeklySnapshotDto
     public DateTime RecordedAt { get; set; }
 }
 
-/// <summary>One row from a CSV bulk-import file.</summary>
 public class BulkImportRowDto
 {
     public string FacilityCode { get; set; } = string.Empty;
@@ -97,4 +96,53 @@ public class BulkImportRowDto
     public int ReorderLevel { get; set; }
     public string? BatchNumber { get; set; }
     public DateTime? ExpiryDate { get; set; }
+}
+
+public class DemandForecastDto
+{
+    public Guid InventoryId { get; set; }
+    public string ProductName { get; set; } = string.Empty;
+    public string FacilityName { get; set; } = string.Empty;
+    public int CurrentStock { get; set; }
+    public int ReorderLevel { get; set; }
+    /// <summary>Average weekly units consumed based on historical snapshots.</summary>
+    public double AvgWeeklyConsumption { get; set; }
+    /// <summary>Estimated weeks before stock runs out. null if consumption is zero.</summary>
+    public double? WeeksUntilStockout { get; set; }
+    /// <summary>Forecasted stock level 4 weeks from now.</summary>
+    public int ForecastedStockIn4Weeks { get; set; }
+    /// <summary>Recommended quantity to order to cover 8 weeks of demand.</summary>
+    public int SuggestedReorderQuantity { get; set; }
+    /// <summary>Critical | Warning | OK</summary>
+    public string RiskLevel { get; set; } = "OK";
+    public List<WeeklySnapshotDto> Snapshots { get; set; } = new();
+    /// <summary>SSA | Average — which model produced the forecast.</summary>
+    public string ModelUsed { get; set; } = "Average";
+    /// <summary>Predicted weekly consumption for each of the next N weeks (SSA output).</summary>
+    public List<double> ForecastedWeeklyDemand { get; set; } = new();
+    /// <summary>Lower bound of 95% confidence interval per forecasted week.</summary>
+    public List<double> ConfidenceLower { get; set; } = new();
+    /// <summary>Upper bound of 95% confidence interval per forecasted week.</summary>
+    public List<double> ConfidenceUpper { get; set; } = new();
+}
+
+public class RiskItemDto
+{
+    public Guid InventoryId { get; set; }
+    public string ProductName { get; set; } = string.Empty;
+    public string FacilityName { get; set; } = string.Empty;
+    public int CurrentStock { get; set; }
+    public int ReorderLevel { get; set; }
+    public double AvgWeeklyConsumption { get; set; }
+    public double? WeeksUntilStockout { get; set; }
+    public string RiskLevel { get; set; } = "OK";
+}
+
+public class RiskSummaryDto
+{
+    public int CriticalCount { get; set; }
+    public int WarningCount { get; set; }
+    public int OkCount { get; set; }
+    public int TotalItems { get; set; }
+    public List<RiskItemDto> TopRiskItems { get; set; } = new();
 }

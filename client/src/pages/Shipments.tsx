@@ -5,8 +5,8 @@ import { shipmentsApi } from '@/api/shipments';
 import { facilitiesApi } from '@/api/facilities';
 import { productsApi } from '@/api/products';
 import { useAuth } from '@/context/AuthContext';
-import type { CreateShipmentDto, ShipmentDto, UpdateShipmentStatusDto } from '@/types';
-import { Plus, X, ChevronDown, Trash2 } from 'lucide-react';
+import type { CreateShipmentDto, ShipmentDto, SubmitGrnDto, UpdateShipmentStatusDto } from '@/types';
+import { Plus, X, ChevronDown, Trash2, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -144,12 +144,110 @@ function UpdateStatusModal({ shipment, onClose }: { shipment: ShipmentDto; onClo
   );
 }
 
+function GrnModal({ shipment, onClose }: { shipment: ShipmentDto; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { register, handleSubmit } = useForm<SubmitGrnDto>({
+    defaultValues: {
+      overallNotes: '',
+      items: shipment.shipmentItems.map(si => ({
+        productId: si.productId,
+        expectedQuantity: si.quantity,
+        receivedQuantity: si.quantity,
+        condition: 'Good' as const,
+        batchNumber: si.batchNumber ?? '',
+        expiryDate: si.expiryDate ?? '',
+        notes: '',
+      })),
+    },
+  });
+
+  const mut = useMutation({
+    mutationFn: (dto: SubmitGrnDto) => shipmentsApi.submitGrn(shipment.id, dto),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['shipments'] });
+      toast.success('GRN submitted — stock updated');
+      onClose();
+    },
+    onError: () => toast.error('Failed to submit GRN'),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-3xl shadow-xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <ClipboardCheck size={18} className="text-green-600" />
+            <h2 className="font-semibold text-gray-900">Goods Receipt Note — {shipment.shipmentNumber}</h2>
+          </div>
+          <button onClick={onClose}><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit((d) => mut.mutate(d))} className="p-6 space-y-4 overflow-y-auto flex-1">
+          <p className="text-sm text-gray-500">Inspect received items. Only items marked <strong>Good</strong> will update inventory.</p>
+
+          <div className="space-y-3">
+            {shipment.shipmentItems.map((si, i) => (
+              <div key={si.id} className="border rounded-lg p-3 space-y-2 bg-gray-50">
+                <div className="font-medium text-sm text-gray-800">{si.productName}</div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Expected Qty</label>
+                    <input type="number" readOnly className="w-full border rounded px-2 py-1 text-sm bg-white" {...register(`items.${i}.expectedQuantity`, { valueAsNumber: true })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Received Qty *</label>
+                    <input type="number" min={0} className="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" {...register(`items.${i}.receivedQuantity`, { required: true, valueAsNumber: true, min: 0 })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Condition *</label>
+                    <select className="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" {...register(`items.${i}.condition`, { required: true })}>
+                      <option value="Good">Good</option>
+                      <option value="Damaged">Damaged</option>
+                      <option value="Expired">Expired</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Batch #</label>
+                    <input className="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" {...register(`items.${i}.batchNumber`)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Expiry Date</label>
+                    <input type="date" className="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" {...register(`items.${i}.expiryDate`)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Notes</label>
+                    <input className="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" {...register(`items.${i}.notes`)} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Overall Notes</label>
+            <textarea rows={2} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" {...register('overallNotes')} />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
+            <button type="submit" disabled={mut.isPending} className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+              {mut.isPending ? 'Submitting…' : 'Submit GRN'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function Shipments() {
   const { isAdmin, isPharmacist } = useAuth();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [statusModal, setStatusModal] = useState<ShipmentDto | null>(null);
+  const [grnModal, setGrnModal] = useState<ShipmentDto | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['shipments', page, statusFilter],
@@ -250,6 +348,14 @@ export default function Shipments() {
                       <td className="px-5 py-3.5 text-gray-600 text-xs">{s.expectedDeliveryDate ? new Date(s.expectedDeliveryDate).toLocaleDateString() : '—'}</td>
                       <td className="px-5 py-3.5 text-right text-gray-600">{s.shipmentItems.length}</td>
                       <td className="px-5 py-3.5 text-right">
+                        {s.status === 'Delivered' && (
+                          <button
+                            onClick={() => setGrnModal(s)}
+                            className="text-xs font-medium text-green-600 hover:text-green-800 px-2.5 py-1 rounded-lg hover:bg-green-50 transition-colors mr-1"
+                          >
+                            Submit GRN
+                          </button>
+                        )}
                         {s.status !== 'Received' && s.status !== 'Cancelled' && (
                           <button
                             onClick={() => setStatusModal(s)}
@@ -282,6 +388,7 @@ export default function Shipments() {
 
       {createModal && <CreateShipmentModal onClose={() => setCreateModal(false)} />}
       {statusModal && <UpdateStatusModal shipment={statusModal} onClose={() => setStatusModal(null)} />}
+      {grnModal && <GrnModal shipment={grnModal} onClose={() => setGrnModal(null)} />}
     </div>
   );
 }

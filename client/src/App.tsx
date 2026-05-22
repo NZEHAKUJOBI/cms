@@ -12,6 +12,8 @@ import Products from '@/pages/Products';
 import Inventory from '@/pages/Inventory';
 import Orders from '@/pages/Orders';
 import Shipments from '@/pages/Shipments';
+import Transfers from '@/pages/Transfers';
+import Forecasting from '@/pages/Forecasting';
 import Reports from '@/pages/Reports';
 import Users from '@/pages/Users';
 import FacilityUsers from '@/pages/FacilityUsers';
@@ -44,6 +46,8 @@ export default function App() {
               <Route path="/inventory" element={<ErrorBoundary><Inventory /></ErrorBoundary>} />
               <Route path="/orders" element={<ErrorBoundary><Orders /></ErrorBoundary>} />
               <Route path="/shipments" element={<ErrorBoundary><Shipments /></ErrorBoundary>} />
+              <Route path="/transfers" element={<ErrorBoundary><Transfers /></ErrorBoundary>} />
+              <Route path="/forecasting" element={<ErrorBoundary><Forecasting /></ErrorBoundary>} />
               <Route path="/reports" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
               <Route path="/users" element={<ProtectedRoute requireAdmin><ErrorBoundary><Users /></ErrorBoundary></ProtectedRoute>} />
               <Route path="/facility-users" element={<ProtectedRoute requirePharmacist><ErrorBoundary><FacilityUsers /></ErrorBoundary></ProtectedRoute>} />

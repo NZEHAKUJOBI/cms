@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.ML;
+using Microsoft.ML.Transforms.TimeSeries;
 using PSCMS.Common;
 using PSCMS.Data;
 using PSCMS.DTOs.Auth;
@@ -269,6 +271,218 @@ public class InventoryService : IInventoryService
         IsNearExpiry = i.ExpiryDate.HasValue && i.ExpiryDate.Value <= DateTime.UtcNow.AddDays(90),
         LastUpdated = i.LastUpdated
     };
+
+    public async Task<DemandForecastDto?> GetForecastAsync(Guid inventoryId, int weeks = 12)
+    {
+        var inv = await _db.Inventories
+            .Include(i => i.Facility)
+            .Include(i => i.Product)
+            .FirstOrDefaultAsync(i => i.Id == inventoryId);
+
+        if (inv is null) return null;
+
+        var snapshots = await GetWeeklySnapshotsAsync(inventoryId, weeks);
+
+        // Build weekly consumption series from snapshot deltas (stock decreases = demand)
+        var consumptionSeries = new List<float>();
+        for (int i = 1; i < snapshots.Count; i++)
+        {
+            var delta = snapshots[i - 1].StockOnHand - snapshots[i].StockOnHand;
+            consumptionSeries.Add(delta > 0 ? (float)delta : 0f);
+        }
+
+        // SSA requires at least windowSize*2 points; fallback to simple average below that
+        const int horizon = 4;
+        const int windowSize = 4;
+        const int minPointsForSsa = windowSize * 2; // 8 data points
+
+        double avgWeeklyConsumption;
+        string modelUsed;
+        List<double> forecastedDemand;
+        List<double> confLower;
+        List<double> confUpper;
+
+        if (consumptionSeries.Count >= minPointsForSsa)
+        {
+            // --- ML.NET SSA forecasting ---
+            var mlContext = new MLContext(seed: 42);
+
+            var timeSeriesData = consumptionSeries
+                .Select(v => new DemandTimeSeriesInput { Value = v })
+                .ToList();
+
+            var dataView = mlContext.Data.LoadFromEnumerable(timeSeriesData);
+
+            var pipeline = mlContext.Forecasting.ForecastBySsa(
+                outputColumnName: "Forecast",
+                inputColumnName: nameof(DemandTimeSeriesInput.Value),
+                windowSize: windowSize,
+                seriesLength: consumptionSeries.Count,
+                trainSize: consumptionSeries.Count,
+                horizon: horizon,
+                confidenceLevel: 0.95f,
+                confidenceLowerBoundColumn: "ConfLower",
+                confidenceUpperBoundColumn: "ConfUpper"
+            );
+
+            var model = pipeline.Fit(dataView);
+            var engine = model.CreateTimeSeriesEngine<DemandTimeSeriesInput, DemandForecastOutput>(mlContext);
+            var prediction = engine.Predict();
+
+            forecastedDemand = prediction.Forecast.Select(v => Math.Max(0d, Math.Round((double)v, 1))).ToList();
+            confLower = prediction.ConfLower.Select(v => Math.Max(0d, Math.Round((double)v, 1))).ToList();
+            confUpper = prediction.ConfUpper.Select(v => Math.Max(0d, Math.Round((double)v, 1))).ToList();
+            avgWeeklyConsumption = forecastedDemand.Count > 0
+                ? Math.Round(forecastedDemand.Average(), 1)
+                : (consumptionSeries.Count > 0 ? Math.Round(consumptionSeries.Average(), 1) : 0);
+            modelUsed = "SSA";
+        }
+        else
+        {
+            // --- Fallback: simple average ---
+            avgWeeklyConsumption = consumptionSeries.Count > 0
+                ? Math.Round(consumptionSeries.Average(), 1)
+                : 0;
+            forecastedDemand = Enumerable.Range(0, horizon)
+                .Select(_ => avgWeeklyConsumption).ToList();
+            confLower = forecastedDemand.Select(v => Math.Max(0, v * 0.7)).ToList();
+            confUpper = forecastedDemand.Select(v => v * 1.3).ToList();
+            modelUsed = "Average";
+        }
+
+        double? weeksUntilStockout = avgWeeklyConsumption > 0
+            ? inv.CurrentStock / avgWeeklyConsumption
+            : null;
+
+        int forecastIn4Weeks = avgWeeklyConsumption > 0
+            ? Math.Max(0, inv.CurrentStock - (int)Math.Round(forecastedDemand.Sum()))
+            : inv.CurrentStock;
+
+        int suggested = avgWeeklyConsumption > 0
+            ? Math.Max(0, (int)Math.Round(8 * avgWeeklyConsumption) + inv.ReorderLevel - inv.CurrentStock)
+            : 0;
+
+        var risk = weeksUntilStockout switch
+        {
+            null => "OK",
+            < 2 => "Critical",
+            < 4 => "Warning",
+            _ => "OK"
+        };
+
+        return new DemandForecastDto
+        {
+            InventoryId = inv.Id,
+            ProductName = inv.Product?.Name ?? string.Empty,
+            FacilityName = inv.Facility?.Name ?? string.Empty,
+            CurrentStock = inv.CurrentStock,
+            ReorderLevel = inv.ReorderLevel,
+            AvgWeeklyConsumption = avgWeeklyConsumption,
+            WeeksUntilStockout = weeksUntilStockout.HasValue ? Math.Round(weeksUntilStockout.Value, 1) : null,
+            ForecastedStockIn4Weeks = forecastIn4Weeks,
+            SuggestedReorderQuantity = suggested,
+            RiskLevel = risk,
+            Snapshots = snapshots,
+            ModelUsed = modelUsed,
+            ForecastedWeeklyDemand = forecastedDemand,
+            ConfidenceLower = confLower,
+            ConfidenceUpper = confUpper,
+        };
+    }
+
+    // ML.NET input/output classes for SSA time-series forecasting
+    private sealed class DemandTimeSeriesInput
+    {
+        public float Value { get; set; }
+    }
+
+    private sealed class DemandForecastOutput
+    {
+        public float[] Forecast { get; set; } = [];
+        public float[] ConfLower { get; set; } = [];
+        public float[] ConfUpper { get; set; } = [];
+    }
+
+    public async Task<RiskSummaryDto> GetRiskSummaryAsync(Guid? facilityId = null)
+    {
+        var query = _db.Inventories
+            .Include(i => i.Facility)
+            .Include(i => i.Product)
+            .AsQueryable();
+
+        if (facilityId.HasValue)
+            query = query.Where(i => i.FacilityId == facilityId);
+
+        var inventories = await query.ToListAsync();
+
+        // Fetch last 8 weekly snapshots for all items in one query
+        var inventoryIds = inventories.Select(i => i.Id).ToList();
+        var cutoff = DateTime.UtcNow.AddDays(-56); // 8 weeks
+        var allSnapshots = await _db.WeeklyStockSnapshots
+            .Where(s => inventoryIds.Contains(s.InventoryId) && s.WeekStartDate >= cutoff)
+            .OrderByDescending(s => s.WeekStartDate)
+            .ToListAsync();
+
+        var snapshotsByInventory = allSnapshots.GroupBy(s => s.InventoryId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.WeekStartDate).ToList());
+
+        var riskItems = new List<RiskItemDto>();
+
+        foreach (var inv in inventories)
+        {
+            var snapshots = snapshotsByInventory.TryGetValue(inv.Id, out var s) ? s : new();
+
+            double avgConsumption = 0;
+            if (snapshots.Count >= 2)
+            {
+                var deltas = new List<double>();
+                for (int i = 1; i < snapshots.Count; i++)
+                {
+                    var delta = snapshots[i - 1].StockOnHand - snapshots[i].StockOnHand;
+                    if (delta > 0) deltas.Add(delta);
+                }
+                if (deltas.Count > 0) avgConsumption = deltas.Average();
+            }
+
+            double? weeksUntilStockout = avgConsumption > 0 ? inv.CurrentStock / avgConsumption : null;
+
+            var risk = weeksUntilStockout switch
+            {
+                null => "OK",
+                < 2 => "Critical",
+                < 4 => "Warning",
+                _ => "OK"
+            };
+
+            riskItems.Add(new RiskItemDto
+            {
+                InventoryId = inv.Id,
+                ProductName = inv.Product?.Name ?? string.Empty,
+                FacilityName = inv.Facility?.Name ?? string.Empty,
+                CurrentStock = inv.CurrentStock,
+                ReorderLevel = inv.ReorderLevel,
+                AvgWeeklyConsumption = Math.Round(avgConsumption, 1),
+                WeeksUntilStockout = weeksUntilStockout.HasValue ? Math.Round(weeksUntilStockout.Value, 1) : null,
+                RiskLevel = risk,
+            });
+        }
+
+        var topRisk = riskItems
+            .Where(r => r.RiskLevel != "OK")
+            .OrderBy(r => r.RiskLevel == "Critical" ? 0 : 1)
+            .ThenBy(r => r.WeeksUntilStockout ?? 999)
+            .Take(10)
+            .ToList();
+
+        return new RiskSummaryDto
+        {
+            TotalItems = riskItems.Count,
+            CriticalCount = riskItems.Count(r => r.RiskLevel == "Critical"),
+            WarningCount = riskItems.Count(r => r.RiskLevel == "Warning"),
+            OkCount = riskItems.Count(r => r.RiskLevel == "OK"),
+            TopRiskItems = topRisk,
+        };
+    }
 
     public async Task<BulkImportResultDto> BulkImportAsync(List<BulkImportRowDto> rows, Guid importedBy)
     {

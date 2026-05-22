@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { reportsApi } from '@/api/reports';
+import { inventoryApi } from '@/api/inventory';
 import { useAuth } from '@/context/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import {
   Building2,
   Package,
@@ -10,9 +11,8 @@ import {
   AlertTriangle,
   Clock,
   TrendingDown,
-  Pill,
+  TrendingUp,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import {
   BarChart,
   Bar,
@@ -20,10 +20,7 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
   Cell,
-  Legend,
 } from 'recharts';
 
 function StatCard({
@@ -140,12 +137,97 @@ function AdminDashboard() {
         </div>
       )}
 
+      <DemandRiskWidget />
       <DrugCharts />
     </div>
   );
 }
 
-const PIE_COLORS = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#818cf8', '#4f46e5', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#a5b4fc', '#e0e7ff'];
+function DemandRiskWidget({ facilityId }: { facilityId?: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['risk-summary', facilityId],
+    queryFn: () => inventoryApi.getRiskSummary(facilityId),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  if (isLoading) return <div className="flex items-center justify-center h-32 text-gray-400 text-sm">Loading demand risk…</div>;
+  if (!data) return null;
+
+  const total = data.totalItems || 1;
+  const critPct = Math.round((data.criticalCount / total) * 100);
+  const warnPct = Math.round((data.warningCount / total) * 100);
+  const okPct = Math.round((data.okCount / total) * 100);
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <TrendingUp size={16} className="text-indigo-500" />
+          <h2 className="font-semibold text-gray-900">Demand Risk Summary</h2>
+          <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-md ml-1">ML.NET · SSA</span>
+        </div>
+        <Link to="/forecasting" className="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors">
+          View All Forecasts →
+        </Link>
+      </div>
+
+      <div className="px-5 py-4 space-y-4">
+        {/* Counts */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl bg-rose-50 border border-rose-100 p-3 text-center">
+            <div className="text-2xl font-bold text-rose-600">{data.criticalCount}</div>
+            <div className="text-xs text-rose-500 font-medium mt-0.5">Critical</div>
+            <div className="text-[10px] text-rose-400">&lt;2 wks</div>
+          </div>
+          <div className="rounded-xl bg-amber-50 border border-amber-100 p-3 text-center">
+            <div className="text-2xl font-bold text-amber-600">{data.warningCount}</div>
+            <div className="text-xs text-amber-500 font-medium mt-0.5">Warning</div>
+            <div className="text-[10px] text-amber-400">2–4 wks</div>
+          </div>
+          <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-center">
+            <div className="text-2xl font-bold text-emerald-600">{data.okCount}</div>
+            <div className="text-xs text-emerald-500 font-medium mt-0.5">Safe</div>
+            <div className="text-[10px] text-emerald-400">&gt;4 wks</div>
+          </div>
+        </div>
+
+        {/* Stacked progress bar */}
+        <div className="flex rounded-full overflow-hidden h-2 gap-px bg-gray-100">
+          {critPct > 0 && <div className="bg-rose-500 transition-all duration-700" style={{ width: `${critPct}%` }} />}
+          {warnPct > 0 && <div className="bg-amber-400 transition-all duration-700" style={{ width: `${warnPct}%` }} />}
+          {okPct > 0 && <div className="bg-emerald-400 transition-all duration-700" style={{ width: `${okPct}%` }} />}
+        </div>
+
+        {/* Top at-risk items */}
+        {data.topRiskItems.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Highest-Risk Items</p>
+            <div className="divide-y divide-gray-50">
+              {data.topRiskItems.slice(0, 5).map((item) => (
+                <div key={item.inventoryId} className="flex items-center justify-between py-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                      item.riskLevel === 'Critical' ? 'bg-rose-500' :
+                      item.riskLevel === 'Warning' ? 'bg-amber-400' : 'bg-emerald-400'
+                    }`} />
+                    <span className="text-sm text-gray-800 truncate">{item.productName}</span>
+                    <span className="text-xs text-gray-400 truncate hidden sm:inline">{item.facilityName}</span>
+                  </div>
+                  <span className={`text-xs font-semibold flex-shrink-0 ml-2 ${
+                    item.riskLevel === 'Critical' ? 'text-rose-600' :
+                    item.riskLevel === 'Warning' ? 'text-amber-600' : 'text-emerald-600'
+                  }`}>
+                    {item.weeksUntilStockout == null ? '∞' : `${item.weeksUntilStockout.toFixed(1)}w`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function DrugCharts() {
   const { data, isLoading } = useQuery({
@@ -157,115 +239,38 @@ function DrugCharts() {
   if (!data) return null;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Pill size={18} className="text-indigo-500" />
-        <h2 className="text-lg font-semibold text-gray-900">Drug Analytics</h2>
-        <span className="ml-auto text-xs text-gray-400">{data.totalDrugs} drugs registered ({data.activeDrugs} active)</span>
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-gray-900 text-sm">Products by Category</h3>
+          <p className="text-xs text-gray-400 mt-0.5">Number of drug regimens per treatment category</p>
+        </div>
+        <span className="text-xs text-gray-400">{data.totalDrugs} total · {data.activeDrugs} active</span>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Bar Chart — Products by Category */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h3 className="font-semibold text-gray-900 text-sm">Products by Category</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Number of drug regimens per treatment category</p>
-          </div>
-          <div className="px-2 py-4" style={{ height: Math.max(280, data.productsByCategory.length * 36) }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.productsByCategory} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
-                <XAxis type="number" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis
-                  dataKey="category"
-                  type="category"
-                  width={180}
-                  tick={{ fontSize: 11, fill: '#6b7280' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,.07)' }}
-                  formatter={(value) => [`${value} products`, 'Count']}
-                />
-                <Bar dataKey="count" fill="#6366f1" radius={[0, 6, 6, 0]} barSize={20} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Pie Chart — Dosage Forms */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h3 className="font-semibold text-gray-900 text-sm">Products by Dosage Form</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Distribution of drug types by formulation</p>
-          </div>
-          <div className="px-2 py-4" style={{ height: 320 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data.productsByDosageForm}
-                  dataKey="count"
-                  nameKey="dosageForm"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={100}
-                  paddingAngle={3}
-                  stroke="none"
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  label={(props: any) => `${props.dosageForm ?? ''} (${((props.percent ?? 0) * 100).toFixed(0)}%)`}
-                >
-                  {data.productsByDosageForm.map((_, idx) => (
-                    <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,.07)' }}
-                  formatter={(value, name) => [`${value} products`, name]}
-                />
-                <Legend
-                  wrapperStyle={{ fontSize: '11px' }}
-                  iconType="circle"
-                  iconSize={8}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+      <div className="px-2 py-4" style={{ height: Math.max(280, data.productsByCategory.length * 36) }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data.productsByCategory} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
+            <XAxis type="number" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+            <YAxis
+              dataKey="category"
+              type="category"
+              width={180}
+              tick={{ fontSize: 11, fill: '#6b7280' }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <Tooltip
+              contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,.07)' }}
+              formatter={(value) => [`${value} products`, 'Count']}
+            />
+            <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={20}>
+              {data.productsByCategory.map((_, idx) => (
+                <Cell key={idx} fill={idx % 2 === 0 ? '#6366f1' : '#8b5cf6'} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
-
-      {/* Bar Chart — Top Drugs by Stock Quantity */}
-      {data.drugAvailability.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h3 className="font-semibold text-gray-900 text-sm">Top Drugs by Stock Quantity</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Total stock across all facilities (top 20)</p>
-          </div>
-          <div className="px-2 py-4" style={{ height: Math.max(280, data.drugAvailability.length * 34) }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.drugAvailability} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
-                <XAxis type="number" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  width={220}
-                  tick={{ fontSize: 10, fill: '#6b7280' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,.07)' }}
-                  formatter={(value, _name, props) => [
-                    `${Number(value).toLocaleString()} units (${(props as { payload: { facilityCount: number } }).payload.facilityCount} facilities)`,
-                    'Total Stock',
-                  ]}
-                />
-                <Bar dataKey="totalStock" fill="#8b5cf6" radius={[0, 6, 6, 0]} barSize={18} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -352,6 +357,7 @@ function FacilityManagerDashboard() {
         )}
       </div>
 
+      <DemandRiskWidget facilityId={data.facilityId} />
       <DrugCharts />
     </div>
   );

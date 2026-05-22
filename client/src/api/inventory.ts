@@ -5,8 +5,10 @@ import type {
   BulkImportResultDto,
   BulkImportRowDto,
   CreateInventoryDto,
+  DemandForecastDto,
   InventoryDto,
   PagedResult,
+  RiskSummaryDto,
   SetStockDto,
   StockLedgerDto,
   UpdateInventoryDto,
@@ -61,4 +63,14 @@ export const inventoryApi = {
 
   bulkImport: (rows: BulkImportRowDto[]) =>
     api.post<ApiResponse<BulkImportResultDto>>('/inventory/bulk-import', rows).then((r) => r.data),
+
+  getForecast: (id: string, weeks = 12) =>
+    api
+      .get<ApiResponse<DemandForecastDto>>(`/inventory/${id}/forecast`, { params: { weeks } })
+      .then((r) => r.data.data),
+
+  getRiskSummary: (facilityId?: string) =>
+    api
+      .get<ApiResponse<RiskSummaryDto>>('/inventory/risk-summary', { params: { facilityId } })
+      .then((r) => r.data.data),
 };

@@ -13,6 +13,9 @@ public class ProductDto
     public string Unit { get; set; } = string.Empty;
     public int MinimumStockLevel { get; set; }
     public string? Description { get; set; }
+    public bool RequiresColdChain { get; set; }
+    public double? StorageTemperatureMin { get; set; }
+    public double? StorageTemperatureMax { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
 }
@@ -42,6 +45,10 @@ public class CreateProductDto
 
     [MaxLength(1000)]
     public string? Description { get; set; }
+
+    public bool RequiresColdChain { get; set; } = false;
+    public double? StorageTemperatureMin { get; set; }
+    public double? StorageTemperatureMax { get; set; }
 }
 
 public class UpdateProductDto
@@ -54,5 +61,8 @@ public class UpdateProductDto
     public string? Unit { get; set; }
     public int? MinimumStockLevel { get; set; }
     public string? Description { get; set; }
+    public bool? RequiresColdChain { get; set; }
+    public double? StorageTemperatureMin { get; set; }
+    public double? StorageTemperatureMax { get; set; }
     public bool? IsActive { get; set; }
 }

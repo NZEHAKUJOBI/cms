@@ -18,6 +18,10 @@ public class AppDbContext : DbContext
     public DbSet<StockLedger> StockLedger => Set<StockLedger>();
     public DbSet<WeeklyStockSnapshot> WeeklyStockSnapshots => Set<WeeklyStockSnapshot>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<GoodsReceiptNote> GoodsReceiptNotes => Set<GoodsReceiptNote>();
+    public DbSet<GoodsReceiptNoteItem> GoodsReceiptNoteItems => Set<GoodsReceiptNoteItem>();
+    public DbSet<StockTransfer> StockTransfers => Set<StockTransfer>();
+    public DbSet<StockTransferItem> StockTransferItems => Set<StockTransferItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -95,6 +99,39 @@ public class AppDbContext : DbContext
         {
             e.HasIndex(ws => new { ws.InventoryId, ws.WeekStartDate }).IsUnique();
             e.HasOne(ws => ws.Inventory).WithMany().HasForeignKey(ws => ws.InventoryId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // GoodsReceiptNote
+        modelBuilder.Entity<GoodsReceiptNote>(e =>
+        {
+            e.HasIndex(g => g.GrnNumber).IsUnique();
+            e.HasIndex(g => g.ShipmentId).IsUnique(); // one GRN per shipment
+            e.Property(g => g.Status).HasConversion<string>().HasColumnType("text");
+            e.HasOne(g => g.Shipment).WithMany().HasForeignKey(g => g.ShipmentId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(g => g.Facility).WithMany().HasForeignKey(g => g.FacilityId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // GoodsReceiptNoteItem
+        modelBuilder.Entity<GoodsReceiptNoteItem>(e =>
+        {
+            e.HasOne(gi => gi.GoodsReceiptNote).WithMany(g => g.Items).HasForeignKey(gi => gi.GrnId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(gi => gi.Product).WithMany().HasForeignKey(gi => gi.ProductId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // StockTransfer
+        modelBuilder.Entity<StockTransfer>(e =>
+        {
+            e.HasIndex(t => t.TransferNumber).IsUnique();
+            e.Property(t => t.Status).HasConversion<string>().HasColumnType("text");
+            e.HasOne(t => t.SourceFacility).WithMany().HasForeignKey(t => t.SourceFacilityId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(t => t.DestinationFacility).WithMany().HasForeignKey(t => t.DestinationFacilityId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // StockTransferItem
+        modelBuilder.Entity<StockTransferItem>(e =>
+        {
+            e.HasOne(ti => ti.StockTransfer).WithMany(t => t.Items).HasForeignKey(ti => ti.StockTransferId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(ti => ti.Product).WithMany().HasForeignKey(ti => ti.ProductId).OnDelete(DeleteBehavior.Restrict);
         });
 
         // Seed admin user

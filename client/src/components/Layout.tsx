@@ -12,7 +12,9 @@ import {
   BoxesIcon,
   ClipboardList,
   Truck,
+  ArrowLeftRight,
   BarChart3,
+  TrendingUp,
   LogOut,
   Menu,
   X,
@@ -31,6 +33,8 @@ const navItems = [
   { to: '/inventory', label: 'Inventory', icon: BoxesIcon, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
   { to: '/orders', label: 'Orders', icon: ClipboardList, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
   { to: '/shipments', label: 'Shipments', icon: Truck, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
+  { to: '/transfers', label: 'Transfers', icon: ArrowLeftRight, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
+  { to: '/forecasting', label: 'Forecasting', icon: TrendingUp, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
   { to: '/reports', label: 'Reports', icon: BarChart3, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
 ];
 
@@ -81,6 +85,8 @@ export default function Layout() {
     '/inventory': 'Inventory',
     '/orders': 'Orders',
     '/shipments': 'Shipments',
+    '/transfers': 'Transfers',
+    '/forecasting': 'Forecasting',
     '/reports': 'Reports',
     '/users': 'Users',
     '/facility-users': 'My Users',

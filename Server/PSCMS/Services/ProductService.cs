@@ -48,7 +48,10 @@ public class ProductService : IProductService
             Strength = dto.Strength,
             Unit = dto.Unit,
             MinimumStockLevel = dto.MinimumStockLevel,
-            Description = dto.Description
+            Description = dto.Description,
+            RequiresColdChain = dto.RequiresColdChain,
+            StorageTemperatureMin = dto.StorageTemperatureMin,
+            StorageTemperatureMax = dto.StorageTemperatureMax
         };
         _db.Products.Add(product);
         await _db.SaveChangesAsync();
@@ -68,6 +71,9 @@ public class ProductService : IProductService
         if (dto.Unit is not null) product.Unit = dto.Unit;
         if (dto.MinimumStockLevel.HasValue) product.MinimumStockLevel = dto.MinimumStockLevel.Value;
         if (dto.Description is not null) product.Description = dto.Description;
+        if (dto.RequiresColdChain.HasValue) product.RequiresColdChain = dto.RequiresColdChain.Value;
+        if (dto.StorageTemperatureMin.HasValue) product.StorageTemperatureMin = dto.StorageTemperatureMin.Value;
+        if (dto.StorageTemperatureMax.HasValue) product.StorageTemperatureMax = dto.StorageTemperatureMax.Value;
         if (dto.IsActive.HasValue) product.IsActive = dto.IsActive.Value;
         product.UpdatedAt = DateTime.UtcNow;
 
@@ -96,6 +102,9 @@ public class ProductService : IProductService
         Unit = p.Unit,
         MinimumStockLevel = p.MinimumStockLevel,
         Description = p.Description,
+        RequiresColdChain = p.RequiresColdChain,
+        StorageTemperatureMin = p.StorageTemperatureMin,
+        StorageTemperatureMax = p.StorageTemperatureMax,
         IsActive = p.IsActive,
         CreatedAt = p.CreatedAt
     };
