@@ -138,6 +138,15 @@ public class RiskItemDto
     public string RiskLevel { get; set; } = "OK";
 }
 
+public class FacilityRiskDto
+{
+    public string FacilityName { get; set; } = string.Empty;
+    public int CriticalCount { get; set; }
+    public int WarningCount { get; set; }
+    public int OkCount { get; set; }
+    public int TotalItems { get; set; }
+}
+
 public class RiskSummaryDto
 {
     public int CriticalCount { get; set; }
@@ -145,4 +154,5 @@ public class RiskSummaryDto
     public int OkCount { get; set; }
     public int TotalItems { get; set; }
     public List<RiskItemDto> TopRiskItems { get; set; } = new();
+    public List<FacilityRiskDto> FacilityBreakdown { get; set; } = new();
 }

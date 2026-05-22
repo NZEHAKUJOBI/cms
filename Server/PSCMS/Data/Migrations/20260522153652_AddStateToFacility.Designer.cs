@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PSCMS.Data;
@@ -11,9 +12,11 @@ using PSCMS.Data;
 namespace PSCMS.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260522153652_AddStateToFacility")]
+    partial class AddStateToFacility
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -199,7 +202,7 @@ namespace PSCMS.Data.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.HasIndex("FacilityId", "ProductId", "BatchNumber")
+                    b.HasIndex("FacilityId", "ProductId")
                         .IsUnique();
 
                     b.ToTable("Inventories");
@@ -1217,7 +1220,8 @@ namespace PSCMS.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("InventoryId", "WeekStartDate");
+                    b.HasIndex("InventoryId", "WeekStartDate")
+                        .IsUnique();
 
                     b.ToTable("WeeklyStockSnapshots");
                 });

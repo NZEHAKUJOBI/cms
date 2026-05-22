@@ -48,10 +48,10 @@ public class AppDbContext : DbContext
             e.Property(f => f.Type).HasConversion<string>().HasColumnType("text");
         });
 
-        // Inventory: unique per facility+product
+        // Inventory: unique per facility + product + batch number (allows same drug with different batches)
         modelBuilder.Entity<Inventory>(e =>
         {
-            e.HasIndex(i => new { i.FacilityId, i.ProductId }).IsUnique();
+            e.HasIndex(i => new { i.FacilityId, i.ProductId, i.BatchNumber }).IsUnique();
             e.HasOne(i => i.Facility).WithMany(f => f.Inventories).HasForeignKey(i => i.FacilityId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(i => i.Product).WithMany(p => p.Inventories).HasForeignKey(i => i.ProductId).OnDelete(DeleteBehavior.Restrict);
         });
@@ -94,10 +94,10 @@ public class AppDbContext : DbContext
             e.HasOne(sl => sl.Inventory).WithMany().HasForeignKey(sl => sl.InventoryId).OnDelete(DeleteBehavior.Cascade);
         });
 
-        // WeeklyStockSnapshot: unique per inventory + week
+        // WeeklyStockSnapshot: append-only time-series — multiple rows per week allowed
         modelBuilder.Entity<WeeklyStockSnapshot>(e =>
         {
-            e.HasIndex(ws => new { ws.InventoryId, ws.WeekStartDate }).IsUnique();
+            e.HasIndex(ws => new { ws.InventoryId, ws.WeekStartDate }); // non-unique: supports append mode
             e.HasOne(ws => ws.Inventory).WithMany().HasForeignKey(ws => ws.InventoryId).OnDelete(DeleteBehavior.Cascade);
         });
 

@@ -64,8 +64,8 @@ public class InventoryService : IInventoryService
 
     public async Task<InventoryDto> CreateAsync(CreateInventoryDto dto, Guid? createdBy = null)
     {
-        var exists = await _db.Inventories.AnyAsync(i => i.FacilityId == dto.FacilityId && i.ProductId == dto.ProductId);
-        if (exists) throw new InvalidOperationException("Inventory record already exists for this facility and product.");
+        var exists = await _db.Inventories.AnyAsync(i => i.FacilityId == dto.FacilityId && i.ProductId == dto.ProductId && i.BatchNumber == dto.BatchNumber);
+        if (exists) throw new InvalidOperationException("Inventory record already exists for this facility, product, and batch number.");
 
         var inv = new Inventory
         {
@@ -191,8 +191,15 @@ public class InventoryService : IInventoryService
     public async Task<List<WeeklySnapshotDto>> GetWeeklySnapshotsAsync(Guid inventoryId, int weeks = 12)
     {
         var since = GetWeekStart(DateTime.UtcNow).AddDays(-7 * (Math.Max(1, weeks) - 1));
-        return await _db.WeeklyStockSnapshots
+        var all = await _db.WeeklyStockSnapshots
             .Where(s => s.InventoryId == inventoryId && s.WeekStartDate >= since)
+            .OrderBy(s => s.WeekStartDate).ThenBy(s => s.RecordedAt)
+            .ToListAsync();
+
+        // Return only the last recorded value per week (most recent RecordedAt) for ML forecasting
+        return all
+            .GroupBy(s => s.WeekStartDate)
+            .Select(g => g.Last())
             .OrderBy(s => s.WeekStartDate)
             .Select(s => new WeeklySnapshotDto
             {
@@ -201,12 +208,12 @@ public class InventoryService : IInventoryService
                 WeekStartDate = s.WeekStartDate,
                 RecordedAt = s.RecordedAt
             })
-            .ToListAsync();
+            .ToList();
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    /// <summary>Adds a StockLedger row and upserts the WeeklyStockSnapshot for the current week.</summary>
+    /// <summary>Adds a StockLedger row and appends a new WeeklyStockSnapshot for the current week.</summary>
     private async Task RecordLedgerAsync(Inventory inv, int previousStock, int newStock, string changeType, string? reason, Guid? changedBy)
     {
         _db.StockLedger.Add(new StockLedger
@@ -224,26 +231,15 @@ public class InventoryService : IInventoryService
         });
 
         var weekStart = GetWeekStart(DateTime.UtcNow);
-        var snapshot = await _db.WeeklyStockSnapshots
-            .FirstOrDefaultAsync(s => s.InventoryId == inv.Id && s.WeekStartDate == weekStart);
-
-        if (snapshot is null)
+        _db.WeeklyStockSnapshots.Add(new WeeklyStockSnapshot
         {
-            _db.WeeklyStockSnapshots.Add(new WeeklyStockSnapshot
-            {
-                InventoryId = inv.Id,
-                FacilityId = inv.FacilityId,
-                ProductId = inv.ProductId,
-                StockOnHand = newStock,
-                WeekStartDate = weekStart,
-                RecordedAt = DateTime.UtcNow
-            });
-        }
-        else
-        {
-            snapshot.StockOnHand = newStock;
-            snapshot.RecordedAt = DateTime.UtcNow;
-        }
+            InventoryId = inv.Id,
+            FacilityId = inv.FacilityId,
+            ProductId = inv.ProductId,
+            StockOnHand = newStock,
+            WeekStartDate = weekStart,
+            RecordedAt = DateTime.UtcNow
+        });
     }
 
     /// <summary>Returns the Monday (UTC) of the week containing <paramref name="date"/>.</summary>
@@ -474,6 +470,19 @@ public class InventoryService : IInventoryService
             .Take(10)
             .ToList();
 
+        var facilityBreakdown = riskItems
+            .GroupBy(r => r.FacilityName)
+            .Select(g => new FacilityRiskDto
+            {
+                FacilityName = g.Key,
+                CriticalCount = g.Count(r => r.RiskLevel == "Critical"),
+                WarningCount = g.Count(r => r.RiskLevel == "Warning"),
+                OkCount = g.Count(r => r.RiskLevel == "OK"),
+                TotalItems = g.Count(),
+            })
+            .OrderByDescending(f => f.CriticalCount).ThenByDescending(f => f.WarningCount)
+            .ToList();
+
         return new RiskSummaryDto
         {
             TotalItems = riskItems.Count,
@@ -481,6 +490,7 @@ public class InventoryService : IInventoryService
             WarningCount = riskItems.Count(r => r.RiskLevel == "Warning"),
             OkCount = riskItems.Count(r => r.RiskLevel == "OK"),
             TopRiskItems = topRisk,
+            FacilityBreakdown = facilityBreakdown,
         };
     }
 

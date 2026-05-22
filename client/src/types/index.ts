@@ -120,6 +120,7 @@ export interface FacilityDto {
   name: string;
   code: string;
   type: string;
+  state: string;
   district: string;
   region: string;
   contactPerson: string;
@@ -133,6 +134,7 @@ export interface CreateFacilityDto {
   name: string;
   code: string;
   type: string;
+  state: string;
   district: string;
   region: string;
   contactPerson: string;
@@ -143,6 +145,7 @@ export interface CreateFacilityDto {
 export interface UpdateFacilityDto {
   name?: string;
   type?: string;
+  state?: string;
   district?: string;
   region?: string;
   contactPerson?: string;
@@ -486,12 +489,21 @@ export interface RiskItemDto {
   riskLevel: 'Critical' | 'Warning' | 'OK';
 }
 
+export interface FacilityRiskDto {
+  facilityName: string;
+  criticalCount: number;
+  warningCount: number;
+  okCount: number;
+  totalItems: number;
+}
+
 export interface RiskSummaryDto {
   criticalCount: number;
   warningCount: number;
   okCount: number;
   totalItems: number;
   topRiskItems: RiskItemDto[];
+  facilityBreakdown: FacilityRiskDto[];
 }
 
 // ─── GRN (Goods Receipt Note) ─────────────────────────────────────────────────

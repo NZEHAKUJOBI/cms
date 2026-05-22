@@ -18,7 +18,7 @@ public class FacilityService : IFacilityService
         var query = _db.Facilities.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(f => f.Name.Contains(search) || f.Code.Contains(search) || f.District.Contains(search));
+            query = query.Where(f => f.Name.Contains(search) || f.Code.Contains(search) || f.District.Contains(search) || f.State.Contains(search));
 
         var total = await query.CountAsync();
         var items = await query
@@ -50,6 +50,7 @@ public class FacilityService : IFacilityService
             Name = dto.Name,
             Code = dto.Code,
             Type = facilityType,
+            State = dto.State,
             District = dto.District,
             Region = dto.Region,
             ContactPerson = dto.ContactPerson,
@@ -67,6 +68,7 @@ public class FacilityService : IFacilityService
         if (facility is null) return null;
 
         if (dto.Name is not null) facility.Name = dto.Name;
+        if (dto.State is not null) facility.State = dto.State;
         if (dto.District is not null) facility.District = dto.District;
         if (dto.Region is not null) facility.Region = dto.Region;
         if (dto.ContactPerson is not null) facility.ContactPerson = dto.ContactPerson;
@@ -97,6 +99,7 @@ public class FacilityService : IFacilityService
         Name = f.Name,
         Code = f.Code,
         Type = f.Type.ToString(),
+        State = f.State,
         District = f.District,
         Region = f.Region,
         ContactPerson = f.ContactPerson,

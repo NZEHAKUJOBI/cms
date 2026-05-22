@@ -8,6 +8,7 @@ public class FacilityDto
     public string Name { get; set; } = string.Empty;
     public string Code { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
+    public string State { get; set; } = string.Empty;
     public string District { get; set; } = string.Empty;
     public string Region { get; set; } = string.Empty;
     public string ContactPerson { get; set; } = string.Empty;
@@ -29,6 +30,9 @@ public class CreateFacilityDto
     public string Type { get; set; } = string.Empty;
 
     [Required, MaxLength(100)]
+    public string State { get; set; } = string.Empty;
+
+    [Required, MaxLength(100)]
     public string District { get; set; } = string.Empty;
 
     [Required, MaxLength(100)]
@@ -48,6 +52,7 @@ public class UpdateFacilityDto
 {
     public string? Name { get; set; }
     public string? Type { get; set; }
+    public string? State { get; set; }
     public string? District { get; set; }
     public string? Region { get; set; }
     public string? ContactPerson { get; set; }

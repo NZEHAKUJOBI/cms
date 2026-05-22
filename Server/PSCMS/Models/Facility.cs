@@ -6,6 +6,7 @@ public class Facility
     public string Name { get; set; } = string.Empty;
     public string Code { get; set; } = string.Empty;
     public FacilityType Type { get; set; }
+    public string State { get; set; } = string.Empty;
     public string District { get; set; } = string.Empty;
     public string Region { get; set; } = string.Empty;
     public string ContactPerson { get; set; } = string.Empty;
