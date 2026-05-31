@@ -8,7 +8,7 @@ version: '3.9'
 #   PSCMS_DB_PASSWORD  – strong random password for Postgres
 #   PSCMS_JWT_KEY      – random string, at least 32 characters
 #
-# The app will be reachable at  http://164.68.120.153:8080
+# The app will be reachable at  http://164.68.120.153:8181
 
 services:
   postgres:
@@ -39,7 +39,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       PSCMS_CONNECTION_STRING: "Host=postgres;Port=5432;Database=pscms;Username=pscms;Password=${PSCMS_DB_PASSWORD}"
       PSCMS_JWT_KEY: "${PSCMS_JWT_KEY:?Set PSCMS_JWT_KEY env var (min 32 chars)}"
-      PSCMS_ALLOWED_ORIGINS: "http://164.68.120.153:8080"
+      PSCMS_ALLOWED_ORIGINS: "http://164.68.120.153:8181"
     # NOT exposed to the host – the client Nginx proxies /api/ internally
 
   client:
@@ -50,7 +50,7 @@ services:
     depends_on:
       - api
     ports:
-      - '8080:80'  # Access the app at http://164.68.120.153:8080
+      - '8181:80'  # Access the app at http://164.68.120.153:8181
 
 volumes:
   pgdata:
