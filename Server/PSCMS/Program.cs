@@ -153,13 +153,12 @@ try
 
     var app = builder.Build();
 
-    // ── Run EF migrations (dev only; use pipeline in prod) ────────────────────
-    if (app.Environment.IsDevelopment())
+    // ── Run EF migrations on startup ─────────────────────────────────────────
+    using (var scope = app.Services.CreateScope())
     {
-        using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.Database.Migrate();
-        Log.Information("Database migrations applied (dev mode).");
+        Log.Information("Database migrations applied.");
     }
 
     // ── Middleware pipeline ───────────────────────────────────────────────────
