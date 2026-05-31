@@ -12,8 +12,8 @@ RUN dotnet publish -c Release -o /app/publish --no-restore
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# Create a non-root user for security
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+# Create a non-root user for security (Debian-based image uses groupadd/useradd)
+RUN groupadd --system appgroup && useradd --system --gid appgroup appuser
 
 COPY --from=build /app/publish .
 
