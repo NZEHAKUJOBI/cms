@@ -61,7 +61,7 @@ export default function Login() {
               type="email"
               autoComplete="email"
               className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-gray-50/50 focus:bg-white placeholder-gray-400 transition-all"
-              placeholder="admin@pscms.org"
+              placeholder="Email Address"
               {...register('email', { required: 'Email is required' })}
             />
             {errors.email && (
