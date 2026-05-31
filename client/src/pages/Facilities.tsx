@@ -6,30 +6,51 @@ import { useAuth } from '@/context/AuthContext';
 import type { CreateFacilityDto, FacilityDto, UpdateFacilityDto } from '@/types';
 import { Plus, Pencil, Trash2, Search, X, Map, List } from 'lucide-react';
 import { toast } from 'sonner';
+import { STATE_NAMES, getLgasForState } from '@/lib/nigeriaStatesLgas';
 
-// Ghana region approximate coordinates for map placement
-const REGION_COORDS: Record<string, [number, number]> = {
-  'Greater Accra': [5.614818, -0.205874],
-  'Ashanti': [6.740656, -1.558669],
-  'Western': [5.093605, -2.288979],
-  'Central': [5.526985, -1.069823],
-  'Eastern': [6.542498, -0.465499],
-  'Volta': [7.903842, 0.488219],
-  'Northern': [9.522889, -0.98577],
-  'Upper East': [10.731085, -0.430587],
-  'Upper West': [10.256396, -2.321665],
-  'Brong-Ahafo': [7.940367, -1.697703],
-  'Oti': [7.903842, 0.488219],
-  'Savannah': [8.7, -1.6],
-  'North East': [10.5, -0.4],
-  'Bono': [7.9, -2.1],
-  'Bono East': [7.75, -1.05],
-  'Ahafo': [7.0, -2.4],
-  'Western North': [6.3, -2.7],
+// Nigeria state approximate coordinates for map placement
+const STATE_COORDS: Record<string, [number, number]> = {
+  'Abia': [5.4527, 7.5248],
+  'Adamawa': [9.3265, 12.3984],
+  'Akwa Ibom': [4.9057, 7.8537],
+  'Anambra': [6.2209, 6.9370],
+  'Bauchi': [10.3158, 9.8442],
+  'Bayelsa': [4.7719, 6.0699],
+  'Benue': [7.3369, 8.7400],
+  'Borno': [11.8333, 13.1500],
+  'Cross River': [5.8702, 8.5988],
+  'Delta': [5.5320, 5.8987],
+  'Ebonyi': [6.2649, 8.0137],
+  'Edo': [6.3350, 5.6037],
+  'Ekiti': [7.7190, 5.3110],
+  'Enugu': [6.4584, 7.5464],
+  'FCT': [9.0579, 7.4951],
+  'Gombe': [10.2897, 11.1673],
+  'Imo': [5.5720, 7.0588],
+  'Jigawa': [12.2280, 9.5616],
+  'Kaduna': [10.5222, 7.4383],
+  'Kano': [12.0022, 8.5919],
+  'Katsina': [12.9816, 7.6183],
+  'Kebbi': [11.4942, 4.2333],
+  'Kogi': [7.8000, 6.7400],
+  'Kwara': [8.9669, 4.3874],
+  'Lagos': [6.5244, 3.3792],
+  'Nasarawa': [8.4966, 8.1994],
+  'Niger': [9.9309, 5.5983],
+  'Ogun': [6.9980, 3.4737],
+  'Ondo': [7.2526, 5.2100],
+  'Osun': [7.5629, 4.5200],
+  'Oyo': [7.8500, 3.9300],
+  'Plateau': [9.2182, 9.5179],
+  'Rivers': [4.8396, 6.9113],
+  'Sokoto': [13.0059, 5.2476],
+  'Taraba': [7.9994, 10.7744],
+  'Yobe': [12.0000, 11.5000],
+  'Zamfara': [12.1222, 6.2236],
 };
 
-function getCoords(region: string, index: number): [number, number] {
-  const base = REGION_COORDS[region] ?? [7.946527, -1.023194];
+function getCoords(state: string, index: number): [number, number] {
+  const base = STATE_COORDS[state] ?? [9.082, 8.6753];
   // Jitter to prevent exact overlap
   const jitter = index * 0.05;
   return [base[0] + jitter * Math.sin(index), base[1] + jitter * Math.cos(index)];
@@ -70,21 +91,21 @@ function FacilityMap({ facilities }: { facilities: FacilityDto[] }) {
     return <div className="flex items-center justify-center h-96 text-gray-400 text-sm">Loading map…</div>;
   }
 
-  const regionGroups: Record<string, FacilityDto[]> = {};
+  const stateGroups: Record<string, FacilityDto[]> = {};
   for (const f of facilities) {
-    const key = f.region ?? 'Unknown';
-    (regionGroups[key] = regionGroups[key] ?? []).push(f);
+    const key = f.state ?? 'Unknown';
+    (stateGroups[key] = stateGroups[key] ?? []).push(f);
   }
 
   const points: { facility: FacilityDto; coords: [number, number] }[] = [];
-  for (const [region, facs] of Object.entries(regionGroups)) {
+  for (const [state, facs] of Object.entries(stateGroups)) {
     facs.forEach((f, i) => {
-      points.push({ facility: f, coords: getCoords(region, i) });
+      points.push({ facility: f, coords: getCoords(state, i) });
     });
   }
 
   return (
-    <MapContainer center={[7.946527, -1.023194]} zoom={7} style={{ height: '520px', width: '100%', borderRadius: '0 0 1rem 1rem' }}>
+    <MapContainer center={[9.082, 8.6753]} zoom={6} style={{ height: '520px', width: '100%', borderRadius: '0 0 1rem 1rem' }}>
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -94,9 +115,9 @@ function FacilityMap({ facilities }: { facilities: FacilityDto[] }) {
           <Popup>
             <div className="text-sm">
               <p className="font-semibold text-gray-900">{facility.name}</p>
-              <p className="text-gray-500">{facility.facilityType}</p>
-              <p className="text-gray-500">{facility.district}, {facility.region}</p>
-              {facility.contactPhone && <p className="text-gray-500">{facility.contactPhone}</p>}
+              <p className="text-gray-500">{facility.type}</p>
+              <p className="text-gray-500">{facility.district}, {facility.state}</p>
+              {facility.phone && <p className="text-gray-500">{facility.phone}</p>}
             </div>
           </Popup>
         </Marker>
@@ -111,14 +132,14 @@ type FormData = CreateFacilityDto & { isActive?: boolean };
 
 function FacilityModal({ facility, onClose }: { facility?: FacilityDto; onClose: () => void }) {
   const qc = useQueryClient();
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
     defaultValues: facility
       ? {
           name: facility.name,
           code: facility.code,
           type: facility.type,
           district: facility.district,
-          region: facility.region,
+          state: facility.state,
           contactPerson: facility.contactPerson,
           phone: facility.phone,
           email: facility.email ?? '',
@@ -126,6 +147,9 @@ function FacilityModal({ facility, onClose }: { facility?: FacilityDto; onClose:
         }
       : undefined,
   });
+
+  const selectedState = watch('state');
+  const lgas = getLgasForState(selectedState ?? '');
 
   const createMut = useMutation({
     mutationFn: facilitiesApi.create,
@@ -175,12 +199,20 @@ function FacilityModal({ facility, onClose }: { facility?: FacilityDto; onClose:
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">District *</label>
-              <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" {...register('district', { required: true })} />
+              <label className="block text-sm font-medium text-gray-700 mb-1">State *</label>
+              <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" {...register('state', { required: true })}>
+                <option value="">Select state…</option>
+                {STATE_NAMES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              {errors.state && <p className="text-red-500 text-xs mt-1">Required</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Region *</label>
-              <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" {...register('region', { required: true })} />
+              <label className="block text-sm font-medium text-gray-700 mb-1">LGA *</label>
+              <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" {...register('district', { required: true })} disabled={!selectedState}>
+                <option value="">Select LGA…</option>
+                {lgas.map((l) => <option key={l} value={l}>{l}</option>)}
+              </select>
+              {errors.district && <p className="text-red-500 text-xs mt-1">Required</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person *</label>
@@ -288,7 +320,7 @@ export default function Facilities() {
 
       {viewMode === 'map' ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <FacilityMap facilities={facilities?.items ?? []} />
+          <FacilityMap facilities={data?.items ?? []} />
         </div>
       ) : (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -311,7 +343,7 @@ export default function Facilities() {
                       {f.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </div>
-                  <div className="text-sm text-gray-600">{f.district}, {f.region}</div>
+                  <div className="text-sm text-gray-600">{f.district}, {f.state}</div>
                   <div className="text-sm text-gray-600">
                     {f.contactPerson} · <span className="text-gray-400">{f.phone}</span>
                   </div>
@@ -343,7 +375,7 @@ export default function Facilities() {
                     <th className="px-5 py-3.5 text-left font-semibold">Name</th>
                     <th className="px-5 py-3.5 text-left font-semibold">Code</th>
                     <th className="px-5 py-3.5 text-left font-semibold">Type</th>
-                    <th className="px-5 py-3.5 text-left font-semibold">District / Region</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">LGA / State</th>
                     <th className="px-5 py-3.5 text-left font-semibold">Contact</th>
                     <th className="px-5 py-3.5 text-center font-semibold">Status</th>
                     {isAdmin && <th className="px-5 py-3.5" />}
@@ -355,7 +387,7 @@ export default function Facilities() {
                       <td className="px-5 py-3.5 font-medium text-gray-900">{f.name}</td>
                       <td className="px-5 py-3.5 text-gray-600 font-mono text-xs">{f.code}</td>
                       <td className="px-5 py-3.5 text-gray-600">{f.type}</td>
-                      <td className="px-5 py-3.5 text-gray-600">{f.district}, {f.region}</td>
+                      <td className="px-5 py-3.5 text-gray-600">{f.district}, {f.state}</td>
                       <td className="px-5 py-3.5 text-gray-600">
                         <div>{f.contactPerson}</div>
                         <div className="text-xs text-gray-400">{f.phone}</div>
