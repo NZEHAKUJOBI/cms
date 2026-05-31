@@ -37,9 +37,10 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      PSCMS_CONNECTION_STRING: "Host=postgres;Port=5432;Database=pscms;Username=pscms;Password=${PSCMS_DB_PASSWORD}"
-      PSCMS_JWT_KEY: "${PSCMS_JWT_KEY:?Set PSCMS_JWT_KEY env var (min 32 chars)}"
-      PSCMS_ALLOWED_ORIGINS: "http://164.68.120.153:8181"
+      # These use ASP.NET Core's double-underscore convention to override appsettings.json values
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=pscms;Username=pscms;Password=${PSCMS_DB_PASSWORD}"
+      Jwt__Key: "${PSCMS_JWT_KEY:?Set PSCMS_JWT_KEY env var (min 32 chars)}"
+      AllowedOrigins: "http://164.68.120.153:8181"
     # NOT exposed to the host – the client Nginx proxies /api/ internally
 
   client:
