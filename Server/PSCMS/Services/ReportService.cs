@@ -48,6 +48,46 @@ public class ReportService : IReportService
         };
     }
 
+    public async Task<DashboardSummaryDto> GetStateDashboardAsync(string state)
+    {
+        var nearExpiryThreshold = DateTime.UtcNow.AddDays(90);
+        var stateFacilityIds = await _db.Facilities
+            .Where(f => f.IsActive && f.State == state)
+            .Select(f => f.Id)
+            .ToListAsync();
+
+        var totalFacilities = stateFacilityIds.Count;
+        var totalProducts = await _db.Products.CountAsync(p => p.IsActive);
+        var pendingOrders = await _db.Orders.CountAsync(o => stateFacilityIds.Contains(o.FacilityId) && o.Status == OrderStatus.Pending);
+        var activeShipments = await _db.Shipments.CountAsync(s => stateFacilityIds.Contains(s.FacilityId) && (s.Status == ShipmentStatus.InTransit || s.Status == ShipmentStatus.Prepared));
+        var lowStock = await _db.Inventories.CountAsync(i => stateFacilityIds.Contains(i.FacilityId) && i.CurrentStock <= i.ReorderLevel);
+        var nearExpiry = await _db.Inventories.CountAsync(i => stateFacilityIds.Contains(i.FacilityId) && i.ExpiryDate.HasValue && i.ExpiryDate.Value <= nearExpiryThreshold);
+
+        var facilitySummaries = await _db.Facilities
+            .Where(f => f.IsActive && f.State == state)
+            .Select(f => new FacilityStockSummaryDto
+            {
+                FacilityId = f.Id,
+                FacilityName = f.Name,
+                TotalProducts = f.Inventories.Count,
+                LowStockCount = f.Inventories.Count(i => i.CurrentStock <= i.ReorderLevel),
+                OutOfStockCount = f.Inventories.Count(i => i.CurrentStock == 0),
+                NearExpiryCount = f.Inventories.Count(i => i.ExpiryDate.HasValue && i.ExpiryDate.Value <= nearExpiryThreshold)
+            })
+            .ToListAsync();
+
+        return new DashboardSummaryDto
+        {
+            TotalFacilities = totalFacilities,
+            TotalProducts = totalProducts,
+            PendingOrders = pendingOrders,
+            ActiveShipments = activeShipments,
+            LowStockAlerts = lowStock,
+            NearExpiryAlerts = nearExpiry,
+            FacilitySummaries = facilitySummaries
+        };
+    }
+
     public async Task<StockReportDto> GetStockReportAsync(Guid facilityId)
     {
         var facility = await _db.Facilities.FindAsync(facilityId)

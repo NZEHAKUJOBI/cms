@@ -146,7 +146,7 @@ export default function Transfers() {
   const [statusFilter, setStatusFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
 
-  const facilityId = user?.role === 'FacilityManager' ? user.facilityId : undefined;
+  const facilityId = user?.role === 'Laboratory' ? user.facilityId : undefined;
 
   const { data, isLoading } = useQuery({
     queryKey: ['transfers', page, statusFilter, facilityId],
@@ -160,7 +160,7 @@ export default function Transfers() {
           <h1 className="text-2xl font-bold text-gray-900">Stock Transfers</h1>
           <p className="text-sm text-gray-500 mt-1">Move stock between facilities</p>
         </div>
-        {(user?.role === 'Admin' || user?.role === 'FacilityManager') && (
+        {(user?.role === 'Admin' || user?.role === 'Laboratory') && (
           <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
             <Plus size={16} /> New Transfer
           </button>
@@ -216,9 +216,9 @@ export default function Transfers() {
                       {t.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-500">{new Date(t.transferDate).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-gray-500">{new Date(t.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-3">
-                    {(user?.role === 'Admin' || user?.role === 'FacilityManager') && (
+                    {(user?.role === 'Admin' || user?.role === 'Laboratory') && (
                       <StatusActions transfer={t} />
                     )}
                   </td>

@@ -67,9 +67,10 @@ function AnimatedBar({ pct, colorClass, delay = 0 }: { pct: number; colorClass: 
 }
 
 function AdminDashboard() {
+  const { isStateManager, state } = useAuth();
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['dashboard'],
-    queryFn: reportsApi.getDashboard,
+    queryKey: ['dashboard', isStateManager ? 'state' : 'admin'],
+    queryFn: isStateManager ? reportsApi.getStateDashboard : reportsApi.getDashboard,
   });
 
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">Loading dashboard…</div>;
@@ -81,7 +82,9 @@ function AdminDashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-normal text-[#202124] tracking-tight">Dashboard</h1>
-        <p className="text-sm text-[#5f6368] mt-0.5">System-wide overview</p>
+        <p className="text-sm text-[#5f6368] mt-0.5">
+          {isStateManager ? `${state ?? 'Assigned state'} - State overview` : 'System-wide overview'}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
@@ -273,7 +276,7 @@ function DrugCharts() {
   );
 }
 
-function FacilityManagerDashboard() {
+function LaboratoryDashboard() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['facility-dashboard'],
     queryFn: reportsApi.getFacilityDashboard,
@@ -362,11 +365,11 @@ function FacilityManagerDashboard() {
 }
 
 export default function Dashboard() {
-  const { isAdmin, isFacilityManager } = useAuth();
+  const { isAdmin, isStateManager, isLaboratory } = useAuth();
 
-  if (!isAdmin && !isFacilityManager) {
+  if (!isAdmin && !isStateManager && !isLaboratory) {
     return <Navigate to="/inventory" replace />;
   }
 
-  return isAdmin ? <AdminDashboard /> : <FacilityManagerDashboard />;
+  return isAdmin || isStateManager ? <AdminDashboard /> : <LaboratoryDashboard />;
 }

@@ -16,7 +16,7 @@ public class InventoryService : IInventoryService
 
     public InventoryService(AppDbContext db) => _db = db;
 
-    public async Task<PagedResult<InventoryDto>> GetAllAsync(int page, int pageSize, Guid? facilityId, bool? lowStockOnly)
+    public async Task<PagedResult<InventoryDto>> GetAllAsync(int page, int pageSize, Guid? facilityId, bool? lowStockOnly, string? stateFilter = null)
     {
         var query = _db.Inventories
             .Include(i => i.Facility)
@@ -24,6 +24,7 @@ public class InventoryService : IInventoryService
             .AsQueryable();
 
         if (facilityId.HasValue) query = query.Where(i => i.FacilityId == facilityId);
+        if (!string.IsNullOrWhiteSpace(stateFilter)) query = query.Where(i => i.Facility.State == stateFilter);
         if (lowStockOnly == true) query = query.Where(i => i.CurrentStock <= i.ReorderLevel);
 
         var total = await query.CountAsync();
@@ -141,7 +142,7 @@ public class InventoryService : IInventoryService
         return await GetByIdAsync(id);
     }
 
-    public async Task<List<InventoryDto>> GetLowStockAlertsAsync(Guid? facilityId)
+    public async Task<List<InventoryDto>> GetLowStockAlertsAsync(Guid? facilityId, string? stateFilter = null)
     {
         var query = _db.Inventories
             .Include(i => i.Facility)
@@ -149,11 +150,12 @@ public class InventoryService : IInventoryService
             .Where(i => i.CurrentStock <= i.ReorderLevel);
 
         if (facilityId.HasValue) query = query.Where(i => i.FacilityId == facilityId);
+        if (!string.IsNullOrWhiteSpace(stateFilter)) query = query.Where(i => i.Facility.State == stateFilter);
 
         return (await query.ToListAsync()).Select(ToDto).ToList();
     }
 
-    public async Task<List<InventoryDto>> GetNearExpiryAlertsAsync(int withinDays = 90, Guid? facilityId = null)
+    public async Task<List<InventoryDto>> GetNearExpiryAlertsAsync(int withinDays = 90, Guid? facilityId = null, string? stateFilter = null)
     {
         var threshold = DateTime.UtcNow.AddDays(withinDays);
         var query = _db.Inventories
@@ -162,6 +164,7 @@ public class InventoryService : IInventoryService
             .Where(i => i.ExpiryDate.HasValue && i.ExpiryDate.Value <= threshold);
 
         if (facilityId.HasValue) query = query.Where(i => i.FacilityId == facilityId);
+        if (!string.IsNullOrWhiteSpace(stateFilter)) query = query.Where(i => i.Facility.State == stateFilter);
 
         return await query
             .OrderBy(i => i.ExpiryDate)
@@ -399,7 +402,7 @@ public class InventoryService : IInventoryService
         public float[] ConfUpper { get; set; } = [];
     }
 
-    public async Task<RiskSummaryDto> GetRiskSummaryAsync(Guid? facilityId = null)
+    public async Task<RiskSummaryDto> GetRiskSummaryAsync(Guid? facilityId = null, string? stateFilter = null)
     {
         var query = _db.Inventories
             .Include(i => i.Facility)
@@ -408,6 +411,8 @@ public class InventoryService : IInventoryService
 
         if (facilityId.HasValue)
             query = query.Where(i => i.FacilityId == facilityId);
+        if (!string.IsNullOrWhiteSpace(stateFilter))
+            query = query.Where(i => i.Facility.State == stateFilter);
 
         var inventories = await query.ToListAsync();
 

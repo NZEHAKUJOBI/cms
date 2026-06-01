@@ -11,9 +11,11 @@ interface AuthContextValue extends AuthState {
   logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  isFacilityManager: boolean;
+  isStateManager: boolean;
+  isLaboratory: boolean;
   isPharmacist: boolean;
   facilityId: string | null;
+  state: string | null;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -53,9 +55,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         isAuthenticated: !!state.token,
         isAdmin: state.user?.role === 'Admin',
-        isFacilityManager: state.user?.role === 'FacilityManager',
+        isStateManager: state.user?.role === 'StateManager',
+        isLaboratory: state.user?.role === 'Laboratory',
         isPharmacist: state.user?.role === 'Pharmacist',
         facilityId: state.user?.facilityId ?? null,
+        state: state.user?.state ?? null,
       }}
     >
       {children}

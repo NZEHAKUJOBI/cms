@@ -33,6 +33,7 @@ export interface AuthResponseDto {
   email: string;
   role: string;
   facilityId?: string;
+  state?: string;
   expiresAt: string;
 }
 
@@ -48,6 +49,7 @@ export interface UserDto {
   role: string;
   facilityId?: string;
   facilityName?: string;
+  state?: string;
   isActive: boolean;
   createdAt: string;
   lastLoginAt?: string;
@@ -59,11 +61,13 @@ export interface CreateUserDto {
   password: string;
   role: string;
   facilityId?: string;
+  state?: string;
 }
 
 export interface UpdateUserDto {
   role?: string;
   facilityId?: string;
+  state?: string;
   isActive?: boolean;
 }
 
@@ -568,11 +572,9 @@ export interface StockTransferDto {
   destinationFacilityId: string;
   destinationFacilityName: string;
   status: 'Pending' | 'Approved' | 'InTransit' | 'Completed' | 'Cancelled';
-  transferDate: string;
   notes?: string;
-  requestedByName: string;
-  approvedByName?: string;
   createdAt: string;
+  updatedAt: string;
   items: StockTransferItemDto[];
 }
 

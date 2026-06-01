@@ -23,9 +23,12 @@ public class RegisterDto
     public string Password { get; set; } = string.Empty;
 
     [Required]
-    public string Role { get; set; } = "FacilityUser";
+    public string Role { get; set; } = "Pharmacist";
 
     public Guid? FacilityId { get; set; }
+
+    [MaxLength(100)]
+    public string? State { get; set; }
 }
 
 public class AuthResponseDto
@@ -35,6 +38,7 @@ public class AuthResponseDto
     public string Email { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public Guid? FacilityId { get; set; }
+    public string? State { get; set; }
     public DateTime ExpiresAt { get; set; }
 }
 
@@ -92,6 +96,7 @@ public class UserDto
     public string Role { get; set; } = string.Empty;
     public Guid? FacilityId { get; set; }
     public string? FacilityName { get; set; }
+    public string? State { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }
@@ -109,9 +114,12 @@ public class CreateUserDto
     public string Password { get; set; } = string.Empty;
 
     [Required]
-    public string Role { get; set; } = "FacilityUser";
+    public string Role { get; set; } = "Pharmacist";
 
     public Guid? FacilityId { get; set; }
+
+    [MaxLength(100)]
+    public string? State { get; set; }
 }
 
 public class UpdateUserDto
@@ -119,4 +127,7 @@ public class UpdateUserDto
     public string? Role { get; set; }
     public Guid? FacilityId { get; set; }
     public bool? IsActive { get; set; }
+
+    [MaxLength(100)]
+    public string? State { get; set; }
 }

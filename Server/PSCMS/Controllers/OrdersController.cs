@@ -16,7 +16,7 @@ public class OrdersController : ControllerBase
 
     public OrdersController(IOrderService orderService) => _orderService = orderService;
 
-    /// <summary>Get paginated orders, optionally filtered by facility or status.</summary>
+    /// <summary>Get paginated orders, optionally filtered by facility or status. StateManager auto-scoped to their state.</summary>
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
@@ -24,7 +24,13 @@ public class OrdersController : ControllerBase
         [FromQuery] Guid? facilityId = null,
         [FromQuery] string? status = null)
     {
-        var result = await _orderService.GetAllAsync(page, pageSize, facilityId, status);
+        string? stateFilter = null;
+        if (User.IsInRole("StateManager"))
+        {
+            var smState = User.FindFirstValue("state");
+            if (!string.IsNullOrWhiteSpace(smState)) stateFilter = smState;
+        }
+        var result = await _orderService.GetAllAsync(page, pageSize, facilityId, status, stateFilter);
         return Ok(ApiResponse<PagedResult<OrderDto>>.Ok(result));
     }
 

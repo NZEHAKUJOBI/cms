@@ -99,6 +99,27 @@ public class AuthController : ControllerBase
         }
     }
 
+    /// <summary>Delete a user account (Admin only).</summary>
+    [HttpDelete("users/{id:guid}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeleteUser(Guid id)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (Guid.TryParse(currentUserId, out var callerId) && callerId == id)
+            return BadRequest(ApiResponse<string>.Fail("You cannot delete your own account."));
+
+        try
+        {
+            var deleted = await _authService.DeleteUserAsync(id);
+            if (!deleted) return NotFound(ApiResponse<string>.Fail("User not found."));
+            return Ok(ApiResponse<string>.Ok("Deleted.", "User deleted."));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<string>.Fail(ex.Message));
+        }
+    }
+
     /// <summary>List users in the current pharmacist's facility (Pharmacist only).</summary>
     [HttpGet("users/my-facility")]
     [Authorize(Roles = "Pharmacist")]
@@ -143,6 +164,53 @@ public class AuthController : ControllerBase
 
         var user = await _authService.ToggleFacilityUserAsync(id, facilityId, dto.IsActive);
         if (user is null) return NotFound(ApiResponse<string>.Fail("User not found or not in your facility."));
+        return Ok(ApiResponse<UserDto>.Ok(user, "User updated."));
+    }
+
+    /// <summary>List all users in the state manager's state (StateManager only).</summary>
+    [HttpGet("users/my-state")]
+    [Authorize(Roles = "StateManager")]
+    public async Task<IActionResult> GetMyStateUsers()
+    {
+        var state = User.FindFirstValue("state");
+        if (string.IsNullOrWhiteSpace(state))
+            return BadRequest(ApiResponse<string>.Fail("No state assigned to this account."));
+
+        var users = await _authService.GetStateUsersAsync(state);
+        return Ok(ApiResponse<List<UserDto>>.Ok(users));
+    }
+
+    /// <summary>Create a user in a facility within the state manager's state (StateManager only).</summary>
+    [HttpPost("users/my-state")]
+    [Authorize(Roles = "StateManager")]
+    public async Task<IActionResult> CreateStateUser([FromBody] CreateUserDto dto)
+    {
+        var state = User.FindFirstValue("state");
+        if (string.IsNullOrWhiteSpace(state))
+            return BadRequest(ApiResponse<string>.Fail("No state assigned to this account."));
+
+        try
+        {
+            var user = await _authService.CreateStateUserAsync(dto, state);
+            return CreatedAtAction(nameof(GetMyStateUsers), ApiResponse<UserDto>.Ok(user, "User created."));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponse<string>.Fail(ex.Message));
+        }
+    }
+
+    /// <summary>Toggle a user's active status within the state manager's state (StateManager only).</summary>
+    [HttpPatch("users/my-state/{id:guid}")]
+    [Authorize(Roles = "StateManager")]
+    public async Task<IActionResult> ToggleStateUser(Guid id, [FromBody] ToggleActiveDto dto)
+    {
+        var state = User.FindFirstValue("state");
+        if (string.IsNullOrWhiteSpace(state))
+            return BadRequest(ApiResponse<string>.Fail("No state assigned to this account."));
+
+        var user = await _authService.ToggleStateUserAsync(id, state, dto.IsActive);
+        if (user is null) return NotFound(ApiResponse<string>.Fail("User not found or not in your state."));
         return Ok(ApiResponse<UserDto>.Ok(user, "User updated."));
     }
 

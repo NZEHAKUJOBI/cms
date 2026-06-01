@@ -53,7 +53,8 @@ public class AuthService : IAuthService
             Email = dto.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
             Role = role,
-            FacilityId = dto.FacilityId
+            FacilityId = dto.FacilityId,
+            State = dto.State
         };
 
         _db.Users.Add(user);
@@ -87,6 +88,7 @@ public class AuthService : IAuthService
                 Role = u.Role.ToString(),
                 FacilityId = u.FacilityId,
                 FacilityName = u.Facility != null ? u.Facility.Name : null,
+                State = u.State,
                 IsActive = u.IsActive,
                 CreatedAt = u.CreatedAt,
                 LastLoginAt = u.LastLoginAt
@@ -111,7 +113,8 @@ public class AuthService : IAuthService
             Email = dto.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
             Role = role,
-            FacilityId = dto.FacilityId
+            FacilityId = dto.FacilityId,
+            State = dto.State
         };
 
         _db.Users.Add(user);
@@ -126,6 +129,7 @@ public class AuthService : IAuthService
             Role = user.Role.ToString(),
             FacilityId = user.FacilityId,
             FacilityName = user.Facility?.Name,
+            State = user.State,
             IsActive = user.IsActive,
             CreatedAt = user.CreatedAt
         };
@@ -145,6 +149,7 @@ public class AuthService : IAuthService
 
         if (dto.FacilityId is not null) user.FacilityId = dto.FacilityId;
         if (dto.IsActive is not null) user.IsActive = dto.IsActive.Value;
+        if (dto.State is not null) user.State = dto.State;
 
         user.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -158,9 +163,24 @@ public class AuthService : IAuthService
             Role = user.Role.ToString(),
             FacilityId = user.FacilityId,
             FacilityName = user.Facility?.Name,
+            State = user.State,
             IsActive = user.IsActive,
             CreatedAt = user.CreatedAt
         };
+    }
+
+    public async Task<bool> DeleteUserAsync(Guid id)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
+        if (user is null) return false;
+
+        // Keep seeded platform admin account protected from deletion.
+        if (user.Id == Guid.Parse("00000000-0000-0000-0000-000000000001"))
+            throw new InvalidOperationException("The default admin account cannot be deleted.");
+
+        _db.Users.Remove(user);
+        await _db.SaveChangesAsync();
+        return true;
     }
 
     private AuthResponseDto GenerateToken(User user)
@@ -179,7 +199,8 @@ public class AuthService : IAuthService
             new Claim(ClaimTypes.Email, user.Email),
             new Claim(ClaimTypes.Name, user.Username),
             new Claim(ClaimTypes.Role, user.Role.ToString()),
-            new Claim("facilityId", user.FacilityId?.ToString() ?? string.Empty)
+            new Claim("facilityId", user.FacilityId?.ToString() ?? string.Empty),
+            new Claim("state", user.State ?? string.Empty)
         };
 
         var expiresAt = DateTime.UtcNow.AddMinutes(expiryMinutes);
@@ -194,6 +215,7 @@ public class AuthService : IAuthService
             Email = user.Email,
             Role = user.Role.ToString(),
             FacilityId = user.FacilityId,
+            State = user.State,
             ExpiresAt = expiresAt
         };
     }
@@ -212,6 +234,7 @@ public class AuthService : IAuthService
                 Role = u.Role.ToString(),
                 FacilityId = u.FacilityId,
                 FacilityName = u.Facility != null ? u.Facility.Name : null,
+                State = u.State,
                 IsActive = u.IsActive,
                 CreatedAt = u.CreatedAt,
                 LastLoginAt = u.LastLoginAt
@@ -231,13 +254,16 @@ public class AuthService : IAuthService
         if (await _db.Users.AnyAsync(u => u.Username == dto.Username))
             throw new InvalidOperationException("Username already taken.");
 
+        var facility = await _db.Facilities.FindAsync(managerFacilityId);
+
         var user = new User
         {
             Username = dto.Username,
             Email = dto.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
             Role = role,
-            FacilityId = managerFacilityId
+            FacilityId = managerFacilityId,
+            State = facility?.State
         };
 
         _db.Users.Add(user);
@@ -252,6 +278,7 @@ public class AuthService : IAuthService
             Role = user.Role.ToString(),
             FacilityId = user.FacilityId,
             FacilityName = user.Facility?.Name,
+            State = user.State,
             IsActive = user.IsActive,
             CreatedAt = user.CreatedAt
         };
@@ -277,6 +304,105 @@ public class AuthService : IAuthService
             Role = user.Role.ToString(),
             FacilityId = user.FacilityId,
             FacilityName = user.Facility?.Name,
+            State = user.State,
+            IsActive = user.IsActive,
+            CreatedAt = user.CreatedAt
+        };
+    }
+
+    public async Task<List<UserDto>> GetStateUsersAsync(string state)
+    {
+        return await _db.Users
+            .Include(u => u.Facility)
+            .Where(u => u.FacilityId.HasValue && u.Facility!.State == state)
+            .OrderBy(u => u.Username)
+            .Select(u => new UserDto
+            {
+                Id = u.Id,
+                Username = u.Username,
+                Email = u.Email,
+                Role = u.Role.ToString(),
+                FacilityId = u.FacilityId,
+                FacilityName = u.Facility != null ? u.Facility.Name : null,
+                State = u.State,
+                IsActive = u.IsActive,
+                CreatedAt = u.CreatedAt,
+                LastLoginAt = u.LastLoginAt
+            })
+            .ToListAsync();
+    }
+
+    public async Task<UserDto> CreateStateUserAsync(CreateUserDto dto, string managerState)
+    {
+        if (!Enum.TryParse<UserRole>(dto.Role, out var role) ||
+            (role != UserRole.Laboratory && role != UserRole.Pharmacist))
+            throw new InvalidOperationException("StateManager can only create Laboratory and Pharmacist accounts.");
+
+        if (!dto.FacilityId.HasValue)
+            throw new InvalidOperationException("A facility is required when creating users as a State Manager.");
+
+        var facility = await _db.Facilities.FindAsync(dto.FacilityId.Value)
+            ?? throw new InvalidOperationException("Facility not found.");
+
+        if (!string.Equals(facility.State, managerState, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("The selected facility is not in your state.");
+
+        if (await _db.Users.AnyAsync(u => u.Email == dto.Email))
+            throw new InvalidOperationException("Email already registered.");
+
+        if (await _db.Users.AnyAsync(u => u.Username == dto.Username))
+            throw new InvalidOperationException("Username already taken.");
+
+        var user = new User
+        {
+            Username = dto.Username,
+            Email = dto.Email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+            Role = role,
+            FacilityId = dto.FacilityId,
+            State = facility.State
+        };
+
+        _db.Users.Add(user);
+        await _db.SaveChangesAsync();
+        await _db.Entry(user).Reference(u => u.Facility).LoadAsync();
+
+        return new UserDto
+        {
+            Id = user.Id,
+            Username = user.Username,
+            Email = user.Email,
+            Role = user.Role.ToString(),
+            FacilityId = user.FacilityId,
+            FacilityName = user.Facility?.Name,
+            State = user.State,
+            IsActive = user.IsActive,
+            CreatedAt = user.CreatedAt
+        };
+    }
+
+    public async Task<UserDto?> ToggleStateUserAsync(Guid userId, string managerState, bool isActive)
+    {
+        var user = await _db.Users
+            .Include(u => u.Facility)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user is null || user.Facility is null || !string.Equals(user.Facility.State, managerState, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        user.IsActive = isActive;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return new UserDto
+        {
+            Id = user.Id,
+            Username = user.Username,
+            Email = user.Email,
+            Role = user.Role.ToString(),
+            FacilityId = user.FacilityId,
+            FacilityName = user.Facility?.Name,
+            State = user.State,
             IsActive = user.IsActive,
             CreatedAt = user.CreatedAt
         };

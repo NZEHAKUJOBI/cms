@@ -13,7 +13,7 @@ public class TransferService : ITransferService
 
     public TransferService(AppDbContext db) => _db = db;
 
-    public async Task<PagedResult<StockTransferDto>> GetAllAsync(int page, int pageSize, Guid? facilityId, string? status)
+    public async Task<PagedResult<StockTransferDto>> GetAllAsync(int page, int pageSize, Guid? facilityId, string? status, string? stateFilter = null)
     {
         var query = _db.StockTransfers
             .Include(t => t.SourceFacility)
@@ -23,6 +23,8 @@ public class TransferService : ITransferService
 
         if (facilityId.HasValue)
             query = query.Where(t => t.SourceFacilityId == facilityId || t.DestinationFacilityId == facilityId);
+        if (!string.IsNullOrWhiteSpace(stateFilter))
+            query = query.Where(t => t.SourceFacility.State == stateFilter || t.DestinationFacility.State == stateFilter);
 
         if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<TransferStatus>(status, out var st))
             query = query.Where(t => t.Status == st);

@@ -148,8 +148,82 @@ public class AppDbContext : DbContext
             UpdatedAt = new DateTime(2026, 3, 18, 22, 37, 6, DateTimeKind.Utc)
         });
 
+        // Seed default facilities for the North West states used in the app.
+        SeedFacilities(modelBuilder);
+
         // Seed ARV / pharmaceutical products
         SeedProducts(modelBuilder);
+    }
+
+    private static void SeedFacilities(ModelBuilder modelBuilder)
+    {
+        var ts = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        var facilities = new (string Id, string Name, string Code, FacilityType Type, string State, string District)[]
+        {
+            ("20000000-0000-0000-0000-000000000001", "Federal Medical Centre", "KEB-001", FacilityType.Hospital, "Kebbi", "Birnin Kebbi"),
+            ("20000000-0000-0000-0000-000000000002", "G.Hosp.", "KEB-002", FacilityType.Hospital, "Kebbi", "Koko/Besse"),
+            ("20000000-0000-0000-0000-000000000003", "G.Hosp. Arg.", "KEB-003", FacilityType.Hospital, "Kebbi", "Argungu"),
+            ("20000000-0000-0000-0000-000000000004", "G.Hosp. Wara", "KEB-004", FacilityType.Hospital, "Kebbi", "Ngaski"),
+            ("20000000-0000-0000-0000-000000000005", "General Hospital Yauri", "KEB-005", FacilityType.Hospital, "Kebbi", "Yauri"),
+            ("20000000-0000-0000-0000-000000000006", "Jega", "KEB-006", FacilityType.Hospital, "Kebbi", "Jega"),
+            ("20000000-0000-0000-0000-000000000007", "Kamba General Hospital", "KEB-007", FacilityType.Hospital, "Kebbi", "Dandi"),
+            ("20000000-0000-0000-0000-000000000008", "Kaoje GH", "KEB-008", FacilityType.Hospital, "Kebbi", "Bagudo"),
+            ("20000000-0000-0000-0000-000000000009", "Sir Yahaya Mem. Hospital", "KEB-009", FacilityType.Hospital, "Kebbi", "Birnin Kebbi"),
+            ("20000000-0000-0000-0000-000000000010", "Wasagu General Hospital", "KEB-010", FacilityType.Hospital, "Kebbi", "Danko/Wasagu"),
+            ("20000000-0000-0000-0000-000000000011", "Zuru Martha Bamaiyi General Hospital", "KEB-011", FacilityType.Hospital, "Kebbi", "Zuru"),
+
+            ("20000000-0000-0000-0000-000000000012", "General Hospital Dogon Daji", "SOK-001", FacilityType.Hospital, "Sokoto", "Tambuwal"),
+            ("20000000-0000-0000-0000-000000000013", "General Hospital Tambuwal", "SOK-002", FacilityType.Hospital, "Sokoto", "Tambuwal"),
+            ("20000000-0000-0000-0000-000000000014", "Holy Family Clinic", "SOK-003", FacilityType.Clinic, "Sokoto", "Sokoto North"),
+            ("20000000-0000-0000-0000-000000000015", "Ilela General Hospital", "SOK-004", FacilityType.Hospital, "Sokoto", "Illela"),
+            ("20000000-0000-0000-0000-000000000016", "Isa General Hospital", "SOK-005", FacilityType.Hospital, "Sokoto", "Isa"),
+            ("20000000-0000-0000-0000-000000000017", "Maryam Abacha Women & Children Hospital", "SOK-006", FacilityType.Hospital, "Sokoto", "Sokoto South"),
+            ("20000000-0000-0000-0000-000000000018", "Rabah General Hospital", "SOK-007", FacilityType.Hospital, "Sokoto", "Rabah"),
+            ("20000000-0000-0000-0000-000000000019", "Sanyinna Comprehensive Health Centre", "SOK-008", FacilityType.HealthCenter, "Sokoto", "Tambuwal"),
+            ("20000000-0000-0000-0000-000000000020", "Kofar Rini Comprehensive Health Centre", "SOK-009", FacilityType.HealthCenter, "Sokoto", "Sokoto North"),
+            ("20000000-0000-0000-0000-000000000021", "Sokoto Specialist Hospital - Sokoto", "SOK-010", FacilityType.Hospital, "Sokoto", "Sokoto South"),
+            ("20000000-0000-0000-0000-000000000022", "Usmanu Danfodiyyo University Teaching Hospital (UDUTH) - Sokoto", "SOK-011", FacilityType.Hospital, "Sokoto", "Wamako"),
+            ("20000000-0000-0000-0000-000000000023", "Women and Children Welfare Clinic", "SOK-012", FacilityType.Clinic, "Sokoto", "Sokoto North"),
+            ("20000000-0000-0000-0000-000000000024", "Wurno General Hospital", "SOK-013", FacilityType.Hospital, "Sokoto", "Wurno"),
+
+            ("20000000-0000-0000-0000-000000000025", "Anka General Hospital", "ZAM-001", FacilityType.Hospital, "Zamfara", "Anka"),
+            ("20000000-0000-0000-0000-000000000026", "Bungudu General Hospital", "ZAM-002", FacilityType.Hospital, "Zamfara", "Bungudu"),
+            ("20000000-0000-0000-0000-000000000027", "Gummi General Hospital", "ZAM-003", FacilityType.Hospital, "Zamfara", "Gummi"),
+            ("20000000-0000-0000-0000-000000000028", "Gusau FMC", "ZAM-004", FacilityType.Hospital, "Zamfara", "Gusau"),
+            ("20000000-0000-0000-0000-000000000029", "Gusau Gen Hosp", "ZAM-005", FacilityType.Hospital, "Zamfara", "Gusau"),
+            ("20000000-0000-0000-0000-000000000030", "Kaura Namoda General Hospital", "ZAM-006", FacilityType.Hospital, "Zamfara", "Kaura Namoda"),
+            ("20000000-0000-0000-0000-000000000031", "King Fahad WCWC", "ZAM-007", FacilityType.Clinic, "Zamfara", "Gusau"),
+            ("20000000-0000-0000-0000-000000000032", "Magami PHC", "ZAM-008", FacilityType.HealthCenter, "Zamfara", "Gusau"),
+            ("20000000-0000-0000-0000-000000000033", "Maru General Hospital", "ZAM-009", FacilityType.Hospital, "Zamfara", "Maru"),
+            ("20000000-0000-0000-0000-000000000034", "Shinkafi Gen Hosp", "ZAM-010", FacilityType.Hospital, "Zamfara", "Shinkafi"),
+            ("20000000-0000-0000-0000-000000000035", "Talata Mafara General Hospital", "ZAM-011", FacilityType.Hospital, "Zamfara", "Talata Mafara"),
+            ("20000000-0000-0000-0000-000000000036", "Tsafe General Hosp", "ZAM-012", FacilityType.Hospital, "Zamfara", "Tsafe"),
+            ("20000000-0000-0000-0000-000000000037", "Yerima Bakura Specialist Hospital", "ZAM-013", FacilityType.Hospital, "Zamfara", "Gusau"),
+        };
+
+        var seedData = new List<Facility>();
+        for (var i = 0; i < facilities.Length; i++)
+        {
+            var facility = facilities[i];
+            seedData.Add(new Facility
+            {
+                Id = Guid.Parse(facility.Id),
+                Name = facility.Name,
+                Code = facility.Code,
+                Type = facility.Type,
+                State = facility.State,
+                District = facility.District,
+                Region = "North West",
+                ContactPerson = "",
+                Phone = "",
+                Email = null,
+                IsActive = true,
+                CreatedAt = ts,
+                UpdatedAt = ts,
+            });
+        }
+
+        modelBuilder.Entity<Facility>().HasData(seedData);
     }
 
     private static void SeedProducts(ModelBuilder modelBuilder)

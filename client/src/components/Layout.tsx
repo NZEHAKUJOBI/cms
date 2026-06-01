@@ -25,17 +25,18 @@ import {
 import { useState, useRef, useEffect } from 'react';
 
 const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'FacilityManager'] },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'StateManager', 'Laboratory'] },
   { to: '/users', label: 'Users', icon: Users, roles: ['Admin'] },
   { to: '/facility-users', label: 'My Users', icon: Users, roles: ['Pharmacist'] },
-  { to: '/facilities', label: 'Facilities', icon: Building2, roles: ['Admin', 'Pharmacist'] },
-  { to: '/products', label: 'Products', icon: Package, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
-  { to: '/inventory', label: 'Inventory', icon: BoxesIcon, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
-  { to: '/orders', label: 'Orders', icon: ClipboardList, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
-  { to: '/shipments', label: 'Shipments', icon: Truck, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
-  { to: '/transfers', label: 'Transfers', icon: ArrowLeftRight, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
-  { to: '/forecasting', label: 'Forecasting', icon: TrendingUp, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
-  { to: '/reports', label: 'Reports', icon: BarChart3, roles: ['Admin', 'FacilityManager', 'Pharmacist'] },
+  { to: '/state-users', label: 'State Users', icon: Users, roles: ['StateManager'] },
+  { to: '/facilities', label: 'Facilities', icon: Building2, roles: ['Admin', 'StateManager', 'Pharmacist'] },
+  { to: '/products', label: 'Products', icon: Package, roles: ['Admin', 'StateManager', 'Laboratory', 'Pharmacist'] },
+  { to: '/inventory', label: 'Inventory', icon: BoxesIcon, roles: ['Admin', 'StateManager', 'Laboratory', 'Pharmacist'] },
+  { to: '/orders', label: 'Orders', icon: ClipboardList, roles: ['Admin', 'StateManager', 'Laboratory', 'Pharmacist'] },
+  { to: '/shipments', label: 'Shipments', icon: Truck, roles: ['Admin', 'StateManager', 'Laboratory', 'Pharmacist'] },
+  { to: '/transfers', label: 'Transfers', icon: ArrowLeftRight, roles: ['Admin', 'StateManager', 'Laboratory', 'Pharmacist'] },
+  { to: '/forecasting', label: 'Forecasting', icon: TrendingUp, roles: ['Admin', 'StateManager', 'Laboratory', 'Pharmacist'] },
+  { to: '/reports', label: 'Reports', icon: BarChart3, roles: ['Admin', 'StateManager', 'Laboratory', 'Pharmacist'] },
 ];
 
 const bottomNavItems = [

@@ -9,6 +9,7 @@ public class User
     public UserRole Role { get; set; } = UserRole.Pharmacist;
     public Guid? FacilityId { get; set; }
     public Facility? Facility { get; set; }
+    public string? State { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -18,6 +19,7 @@ public class User
 public enum UserRole
 {
     Admin,
-    FacilityManager,
+    StateManager,
+    Laboratory,
     Pharmacist
 }

@@ -21,6 +21,16 @@ export const authApi = {
   toggleFacilityUser: (id: string, isActive: boolean) =>
     api.patch<ApiResponse<UserDto>>(`/auth/users/my-facility/${id}`, { isActive }).then((r) => r.data.data),
 
+  // State Manager — users scoped to their state
+  getMyStateUsers: () =>
+    api.get<ApiResponse<UserDto[]>>('/auth/users/my-state').then((r) => r.data.data),
+
+  createMyStateUser: (dto: CreateUserDto) =>
+    api.post<ApiResponse<UserDto>>('/auth/users/my-state', dto).then((r) => r.data.data),
+
+  toggleStateUser: (id: string, isActive: boolean) =>
+    api.patch<ApiResponse<UserDto>>(`/auth/users/my-state/${id}`, { isActive }).then((r) => r.data.data),
+
   forgotPassword: (email: string) =>
     api.post<ApiResponse<{ resetToken?: string }>>('/auth/forgot-password', { email }).then((r) => r.data),
 

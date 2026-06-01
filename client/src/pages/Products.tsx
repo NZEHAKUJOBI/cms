@@ -136,7 +136,8 @@ function ProductModal({
 }
 
 export default function Products() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isStateManager } = useAuth();
+  const canManageProducts = isAdmin || isStateManager;
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -167,7 +168,7 @@ export default function Products() {
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Products</h1>
           <p className="text-sm text-gray-500 mt-0.5 hidden sm:block">Manage pharmaceutical products</p>
         </div>
-        {isAdmin && (
+        {canManageProducts && (
           <button
             onClick={() => setModal('create')}
             className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all active:scale-[0.98]"
@@ -217,7 +218,7 @@ export default function Products() {
                     <span className="px-2 py-0.5 bg-indigo-50 rounded-md text-indigo-600">Min: {p.minimumStockLevel}</span>
                     {p.requiresColdChain && <span className="px-2 py-0.5 bg-blue-50 rounded-md text-blue-600">🧊 Cold Chain</span>}
                   </div>
-                  {isAdmin && (
+                  {canManageProducts && (
                     <div className="flex gap-2 pt-1">
                       <button
                         onClick={() => setModal(p)}
@@ -249,7 +250,7 @@ export default function Products() {
                     <th className="px-5 py-3.5 text-left font-semibold">Unit</th>
                     <th className="px-5 py-3.5 text-right font-semibold">Min Stock</th>
                     <th className="px-5 py-3.5 text-center font-semibold">Status</th>
-                    {isAdmin && <th className="px-5 py-3.5" />}
+                    {canManageProducts && <th className="px-5 py-3.5" />}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -266,7 +267,7 @@ export default function Products() {
                           {p.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      {isAdmin && (
+                      {canManageProducts && (
                         <td className="px-5 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-1">
                             <button onClick={() => setModal(p)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600 transition-colors">

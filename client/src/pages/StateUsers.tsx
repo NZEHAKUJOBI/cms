@@ -2,22 +2,37 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { authApi } from '@/api/auth';
+import { facilitiesApi } from '@/api/facilities';
 import { useAuth } from '@/context/AuthContext';
 import type { CreateUserDto, UserDto } from '@/types';
-import { Plus, X, UserCheck, UserX, Building2 } from 'lucide-react';
+import { Plus, X, UserCheck, UserX, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 
-const ALLOWED_ROLES = ['Pharmacist'] as const;
+const ALLOWED_ROLES = ['Laboratory', 'Pharmacist'] as const;
 
-function CreateUserModal({ facilityName, onClose }: { facilityName: string; onClose: () => void }) {
+const ROLE_COLORS: Record<string, string> = {
+  Laboratory: 'bg-blue-100 text-blue-700',
+  Pharmacist: 'bg-green-100 text-green-700',
+};
+
+function CreateUserModal({ stateName, onClose }: { stateName: string; onClose: () => void }) {
   const qc = useQueryClient();
   const { register, handleSubmit, formState: { errors } } = useForm<CreateUserDto>({
-    defaultValues: { role: 'FacilityUser' },
+    defaultValues: { role: 'Laboratory' },
   });
 
+  const { data: facilities } = useQuery({
+    queryKey: ['facilities-all'],
+    queryFn: () => facilitiesApi.getAll(1, 200),
+  });
+
+  const stateFacilities = facilities?.items.filter(
+    (f) => f.isActive && f.state?.toLowerCase() === stateName.toLowerCase(),
+  ) ?? [];
+
   const mut = useMutation({
-    mutationFn: authApi.createMyFacilityUser,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['my-facility-users'] }); toast.success('User created'); onClose(); },
+    mutationFn: authApi.createMyStateUser,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['my-state-users'] }); toast.success('User created'); onClose(); },
     onError: () => toast.error('Failed to create user'),
   });
 
@@ -27,7 +42,7 @@ function CreateUserModal({ facilityName, onClose }: { facilityName: string; onCl
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div>
             <h2 className="font-semibold text-gray-900">New User</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Facility: {facilityName}</p>
+            <p className="text-xs text-gray-500 mt-0.5">State: {stateName}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
         </div>
@@ -77,6 +92,23 @@ function CreateUserModal({ facilityName, onClose }: { facilityName: string; onCl
             </select>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Facility *</label>
+            <select
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              {...register('facilityId', { required: 'Facility is required' })}
+            >
+              <option value="">— Select facility —</option>
+              {stateFacilities.map((f) => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+            {errors.facilityId && <p className="text-red-500 text-xs mt-1">{errors.facilityId.message}</p>}
+            {stateFacilities.length === 0 && (
+              <p className="text-amber-600 text-xs mt-1">No active facilities found for {stateName}.</p>
+            )}
+          </div>
+
           {mut.error && (
             <p className="text-red-600 text-sm">{(mut.error as Error).message}</p>
           )}
@@ -103,40 +135,67 @@ function CreateUserModal({ facilityName, onClose }: { facilityName: string; onCl
   );
 }
 
-const ROLE_COLORS: Record<string, string> = {
-  FacilityUser: 'bg-sky-100 text-sky-700',
-  Pharmacist: 'bg-purple-100 text-purple-700',
-  Laboratory: 'bg-blue-100 text-blue-700',
-};
+function UserCard({ user, onToggle, isPending }: { user: UserDto; onToggle: (v: boolean) => void; isPending: boolean }) {
+  return (
+    <div className="p-4 flex items-start justify-between gap-3">
+      <div className="flex-1 min-w-0">
+        <div className="font-medium text-gray-900 truncate">{user.username}</div>
+        <div className="text-xs text-gray-500 truncate">{user.email}</div>
+        {user.facilityName && (
+          <div className="text-xs text-gray-400 truncate mt-0.5">{user.facilityName}</div>
+        )}
+        <div className="mt-1.5 flex items-center gap-2">
+          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[user.role] ?? 'bg-gray-100 text-gray-600'}`}>
+            {user.role}
+          </span>
+          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${user.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+            {user.isActive ? 'Active' : 'Inactive'}
+          </span>
+        </div>
+      </div>
+      <button
+        disabled={isPending}
+        onClick={() => onToggle(!user.isActive)}
+        className={`p-2 rounded-xl transition-colors disabled:opacity-50 mt-1 ${user.isActive ? 'hover:bg-red-50 text-gray-400 hover:text-red-600' : 'hover:bg-green-50 text-gray-400 hover:text-green-600'}`}
+        title={user.isActive ? 'Deactivate' : 'Activate'}
+      >
+        {user.isActive ? <UserX size={15} /> : <UserCheck size={15} />}
+      </button>
+    </div>
+  );
+}
 
-export default function FacilityUsers() {
-  const { user } = useAuth();
+export default function StateUsers() {
+  const { state } = useAuth();
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
 
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ['my-facility-users'],
-    queryFn: authApi.getMyFacilityUsers,
+    queryKey: ['my-state-users'],
+    queryFn: authApi.getMyStateUsers,
   });
 
   const toggleMut = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      authApi.toggleFacilityUser(id, isActive),
-    onSuccess: (_, { isActive }) => { qc.invalidateQueries({ queryKey: ['my-facility-users'] }); toast.success(isActive ? 'User activated' : 'User deactivated'); },
+      authApi.toggleStateUser(id, isActive),
+    onSuccess: (_, { isActive }) => {
+      qc.invalidateQueries({ queryKey: ['my-state-users'] });
+      toast.success(isActive ? 'User activated' : 'User deactivated');
+    },
     onError: () => toast.error('Failed to update user status'),
   });
 
-  const facilityName = users[0]?.facilityName ?? user?.username ?? '—';
+  const stateName = state ?? '—';
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Facility Users</h1>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">State Users</h1>
           <div className="flex items-center gap-1.5 mt-1 text-sm text-gray-500">
-            <Building2 size={14} />
-            <span>{facilityName}</span>
+            <MapPin size={14} />
+            <span>{stateName}</span>
           </div>
         </div>
         <button
@@ -185,6 +244,7 @@ export default function FacilityUsers() {
                   <tr className="bg-gray-50/80 text-gray-500 text-xs uppercase tracking-wider">
                     <th className="px-5 py-3.5 text-left font-semibold">User</th>
                     <th className="px-5 py-3.5 text-left font-semibold">Email</th>
+                    <th className="px-5 py-3.5 text-left font-semibold">Facility</th>
                     <th className="px-5 py-3.5 text-left font-semibold">Role</th>
                     <th className="px-5 py-3.5 text-left font-semibold">Joined</th>
                     <th className="px-5 py-3.5 text-center font-semibold">Status</th>
@@ -196,6 +256,7 @@ export default function FacilityUsers() {
                     <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-5 py-3.5 font-medium text-gray-900">{u.username}</td>
                       <td className="px-5 py-3.5 text-gray-600">{u.email}</td>
+                      <td className="px-5 py-3.5 text-gray-500">{u.facilityName ?? '—'}</td>
                       <td className="px-5 py-3.5">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[u.role] ?? 'bg-gray-100 text-gray-600'}`}>
                           {u.role}
@@ -226,34 +287,7 @@ export default function FacilityUsers() {
         )}
       </div>
 
-      {showCreate && <CreateUserModal facilityName={facilityName} onClose={() => setShowCreate(false)} />}
-    </div>
-  );
-}
-
-function UserCard({ user, onToggle, isPending }: { user: UserDto; onToggle: (v: boolean) => void; isPending: boolean }) {
-  return (
-    <div className="p-4 flex items-start justify-between gap-3">
-      <div className="flex-1 min-w-0">
-        <div className="font-medium text-gray-900 truncate">{user.username}</div>
-        <div className="text-xs text-gray-500 truncate">{user.email}</div>
-        <div className="mt-1.5 flex items-center gap-2">
-          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[user.role] ?? 'bg-gray-100 text-gray-600'}`}>
-            {user.role}
-          </span>
-          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${user.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-            {user.isActive ? 'Active' : 'Inactive'}
-          </span>
-        </div>
-      </div>
-      <button
-        disabled={isPending}
-        onClick={() => onToggle(!user.isActive)}
-        className={`mt-1 p-2 rounded-lg border transition-colors disabled:opacity-50 ${user.isActive ? 'border-red-200 text-red-400 hover:bg-red-50' : 'border-green-200 text-green-500 hover:bg-green-50'}`}
-        title={user.isActive ? 'Deactivate' : 'Activate'}
-      >
-        {user.isActive ? <UserX size={16} /> : <UserCheck size={16} />}
-      </button>
+      {showCreate && state && <CreateUserModal stateName={state} onClose={() => setShowCreate(false)} />}
     </div>
   );
 }

@@ -13,7 +13,7 @@ public class OrderService : IOrderService
 
     public OrderService(AppDbContext db) => _db = db;
 
-    public async Task<PagedResult<OrderDto>> GetAllAsync(int page, int pageSize, Guid? facilityId, string? status)
+    public async Task<PagedResult<OrderDto>> GetAllAsync(int page, int pageSize, Guid? facilityId, string? status, string? stateFilter = null)
     {
         var query = _db.Orders
             .Include(o => o.Facility)
@@ -21,6 +21,7 @@ public class OrderService : IOrderService
             .AsQueryable();
 
         if (facilityId.HasValue) query = query.Where(o => o.FacilityId == facilityId);
+        if (!string.IsNullOrWhiteSpace(stateFilter)) query = query.Where(o => o.Facility.State == stateFilter);
         if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<OrderStatus>(status, out var s))
             query = query.Where(o => o.Status == s);
 

@@ -34,7 +34,7 @@ public class ProductsController : ControllerBase
 
     /// <summary>Create a new pharmaceutical product.</summary>
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,StateManager")]
     public async Task<IActionResult> Create([FromBody] CreateProductDto dto)
     {
         var product = await _productService.CreateAsync(dto);
@@ -43,7 +43,7 @@ public class ProductsController : ControllerBase
 
     /// <summary>Update an existing product.</summary>
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,StateManager")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateProductDto dto)
     {
         var product = await _productService.UpdateAsync(id, dto);
@@ -53,7 +53,7 @@ public class ProductsController : ControllerBase
 
     /// <summary>Soft-delete (deactivate) a product.</summary>
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,StateManager")]
     public async Task<IActionResult> Delete(Guid id)
     {
         var success = await _productService.DeleteAsync(id);

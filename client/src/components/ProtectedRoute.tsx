@@ -6,15 +6,17 @@ interface Props {
   children: ReactNode;
   requireAdmin?: boolean;
   requirePharmacist?: boolean;
+  requireStateManager?: boolean;
 }
 
-export default function ProtectedRoute({ children, requireAdmin = false, requirePharmacist = false }: Props) {
-  const { isAuthenticated, isAdmin, isPharmacist } = useAuth();
+export default function ProtectedRoute({ children, requireAdmin = false, requirePharmacist = false, requireStateManager = false }: Props) {
+  const { isAuthenticated, isAdmin, isPharmacist, isStateManager } = useAuth();
   const location = useLocation();
 
   if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />;
   if (requireAdmin && !isAdmin) return <Navigate to="/inventory" replace />;
   if (requirePharmacist && !isPharmacist) return <Navigate to="/inventory" replace />;
+  if (requireStateManager && !isStateManager) return <Navigate to="/inventory" replace />;
 
   return <>{children}</>;
 }

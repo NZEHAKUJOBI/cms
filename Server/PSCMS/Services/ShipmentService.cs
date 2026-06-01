@@ -14,7 +14,7 @@ public class ShipmentService : IShipmentService
 
     public ShipmentService(AppDbContext db) => _db = db;
 
-    public async Task<PagedResult<ShipmentDto>> GetAllAsync(int page, int pageSize, Guid? facilityId, string? status)
+    public async Task<PagedResult<ShipmentDto>> GetAllAsync(int page, int pageSize, Guid? facilityId, string? status, string? stateFilter = null)
     {
         var query = _db.Shipments
             .Include(s => s.Facility)
@@ -23,6 +23,7 @@ public class ShipmentService : IShipmentService
             .AsQueryable();
 
         if (facilityId.HasValue) query = query.Where(s => s.FacilityId == facilityId);
+        if (!string.IsNullOrWhiteSpace(stateFilter)) query = query.Where(s => s.Facility.State == stateFilter);
         if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<ShipmentStatus>(status, out var st))
             query = query.Where(s => s.Status == st);
 

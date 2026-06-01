@@ -17,7 +17,7 @@ public class InventoryController : ControllerBase
 
     public InventoryController(IInventoryService inventoryService) => _inventoryService = inventoryService;
 
-    /// <summary>Get paginated inventory records. FacilityManager auto-scoped to their facility.</summary>
+    /// <summary>Get paginated inventory records. Laboratory auto-scoped to their facility. StateManager auto-scoped to their state.</summary>
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
@@ -25,12 +25,18 @@ public class InventoryController : ControllerBase
         [FromQuery] Guid? facilityId = null,
         [FromQuery] bool? lowStockOnly = null)
     {
-        if (User.IsInRole("FacilityManager"))
+        string? stateFilter = null;
+        if (User.IsInRole("Laboratory"))
         {
             if (Guid.TryParse(User.FindFirstValue("facilityId"), out var fmId))
                 facilityId = fmId;
         }
-        var result = await _inventoryService.GetAllAsync(page, pageSize, facilityId, lowStockOnly);
+        else if (User.IsInRole("StateManager"))
+        {
+            var smState = User.FindFirstValue("state");
+            if (!string.IsNullOrWhiteSpace(smState)) stateFilter = smState;
+        }
+        var result = await _inventoryService.GetAllAsync(page, pageSize, facilityId, lowStockOnly, stateFilter);
         return Ok(ApiResponse<PagedResult<InventoryDto>>.Ok(result));
     }
 
@@ -51,9 +57,9 @@ public class InventoryController : ControllerBase
         return Ok(ApiResponse<List<InventoryDto>>.Ok(items));
     }
 
-    /// <summary>Create an inventory record. Admin picks any facility; FacilityManager auto-assigned to theirs.</summary>
+    /// <summary>Create an inventory record. Admin picks any facility; Laboratory auto-assigned to theirs.</summary>
     [HttpPost]
-    [Authorize(Roles = "Admin,FacilityManager")]
+    [Authorize(Roles = "Admin,Laboratory")]
     public async Task<IActionResult> Create([FromBody] CreateInventoryDto dto)
     {
         if (!User.IsInRole("Admin"))
@@ -77,7 +83,7 @@ public class InventoryController : ControllerBase
 
     /// <summary>Update an inventory record.</summary>
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "Admin,FacilityManager,Pharmacist")]
+    [Authorize(Roles = "Admin,Laboratory,Pharmacist")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateInventoryDto dto)
     {
         var inv = await _inventoryService.UpdateAsync(id, dto);
@@ -87,7 +93,7 @@ public class InventoryController : ControllerBase
 
     /// <summary>Adjust stock quantity (add or subtract).</summary>
     [HttpPost("{id:guid}/adjust")]
-    [Authorize(Roles = "Admin,FacilityManager,Pharmacist")]
+    [Authorize(Roles = "Admin,Laboratory,Pharmacist")]
     public async Task<IActionResult> AdjustStock(Guid id, [FromBody] AdjustStockDto dto)
     {
         try
@@ -103,9 +109,9 @@ public class InventoryController : ControllerBase
         }
     }
 
-    /// <summary>Set absolute stock level (physical count). FacilityManager restricted to their facility.</summary>
+    /// <summary>Set absolute stock level (physical count). Laboratory restricted to their facility.</summary>
     [HttpPost("{id:guid}/set-stock")]
-    [Authorize(Roles = "Admin,FacilityManager")]
+    [Authorize(Roles = "Admin,Laboratory")]
     public async Task<IActionResult> SetStock(Guid id, [FromBody] SetStockDto dto)
     {
         var uid = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var u) ? u : (Guid?)null;
@@ -143,39 +149,57 @@ public class InventoryController : ControllerBase
     [HttpGet("risk-summary")]
     public async Task<IActionResult> GetRiskSummary([FromQuery] Guid? facilityId = null)
     {
-        if (User.IsInRole("FacilityManager"))
+        string? stateFilter = null;
+        if (User.IsInRole("Laboratory"))
         {
             if (Guid.TryParse(User.FindFirstValue("facilityId"), out var fmId))
                 facilityId = fmId;
         }
-        var summary = await _inventoryService.GetRiskSummaryAsync(facilityId);
+        else if (User.IsInRole("StateManager"))
+        {
+            var smState = User.FindFirstValue("state");
+            if (!string.IsNullOrWhiteSpace(smState)) stateFilter = smState;
+        }
+        var summary = await _inventoryService.GetRiskSummaryAsync(facilityId, stateFilter);
         return Ok(ApiResponse<RiskSummaryDto>.Ok(summary));
     }
 
-    /// <summary>Get all low-stock alerts. FacilityManager auto-scoped.</summary>
+    /// <summary>Get all low-stock alerts. Laboratory auto-scoped. StateManager state-scoped.</summary>
     [HttpGet("alerts/low-stock")]
     public async Task<IActionResult> LowStockAlerts([FromQuery] Guid? facilityId = null)
     {
-        if (User.IsInRole("FacilityManager"))
+        string? stateFilter = null;
+        if (User.IsInRole("Laboratory"))
         {
             if (Guid.TryParse(User.FindFirstValue("facilityId"), out var fmId))
                 facilityId = fmId;
         }
-        var items = await _inventoryService.GetLowStockAlertsAsync(facilityId);
+        else if (User.IsInRole("StateManager"))
+        {
+            var smState = User.FindFirstValue("state");
+            if (!string.IsNullOrWhiteSpace(smState)) stateFilter = smState;
+        }
+        var items = await _inventoryService.GetLowStockAlertsAsync(facilityId, stateFilter);
         return Ok(ApiResponse<List<InventoryDto>>.Ok(items));
     }
 
-    /// <summary>Get products nearing expiry. FacilityManager auto-scoped.</summary>
+    /// <summary>Get products nearing expiry. Laboratory auto-scoped. StateManager state-scoped.</summary>
     [HttpGet("alerts/near-expiry")]
     public async Task<IActionResult> NearExpiryAlerts([FromQuery] int withinDays = 90)
     {
         Guid? facilityId = null;
-        if (User.IsInRole("FacilityManager"))
+        string? stateFilter = null;
+        if (User.IsInRole("Laboratory"))
         {
             if (Guid.TryParse(User.FindFirstValue("facilityId"), out var fmId))
                 facilityId = fmId;
         }
-        var items = await _inventoryService.GetNearExpiryAlertsAsync(withinDays, facilityId);
+        else if (User.IsInRole("StateManager"))
+        {
+            var smState = User.FindFirstValue("state");
+            if (!string.IsNullOrWhiteSpace(smState)) stateFilter = smState;
+        }
+        var items = await _inventoryService.GetNearExpiryAlertsAsync(withinDays, facilityId, stateFilter);
         return Ok(ApiResponse<List<InventoryDto>>.Ok(items));
     }
 
@@ -184,7 +208,7 @@ public class InventoryController : ControllerBase
     /// Accepts a JSON body: array of rows with FacilityCode, ProductName, CurrentStock, ReorderLevel, etc.
     /// </summary>
     [HttpPost("bulk-import")]
-    [Authorize(Roles = "Admin,FacilityManager")]
+    [Authorize(Roles = "Admin,Laboratory")]
     public async Task<IActionResult> BulkImport([FromBody] List<BulkImportRowDto> rows)
     {
         if (rows is null || rows.Count == 0)

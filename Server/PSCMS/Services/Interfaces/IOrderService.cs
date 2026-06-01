@@ -5,7 +5,7 @@ namespace PSCMS.Services.Interfaces;
 
 public interface IOrderService
 {
-    Task<PagedResult<OrderDto>> GetAllAsync(int page, int pageSize, Guid? facilityId, string? status);
+    Task<PagedResult<OrderDto>> GetAllAsync(int page, int pageSize, Guid? facilityId, string? status, string? stateFilter = null);
     Task<OrderDto?> GetByIdAsync(Guid id);
     Task<OrderDto> CreateAsync(CreateOrderDto dto, Guid requestedBy);
     Task<OrderDto?> ApproveAsync(Guid id, ApproveOrderDto dto, Guid approvedBy);

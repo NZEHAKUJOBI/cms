@@ -13,9 +13,12 @@ public class FacilityService : IFacilityService
 
     public FacilityService(AppDbContext db) => _db = db;
 
-    public async Task<PagedResult<FacilityDto>> GetAllAsync(int page, int pageSize, string? search)
+    public async Task<PagedResult<FacilityDto>> GetAllAsync(int page, int pageSize, string? search, string? stateFilter = null)
     {
         var query = _db.Facilities.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(stateFilter))
+            query = query.Where(f => f.State == stateFilter);
 
         if (!string.IsNullOrWhiteSpace(search))
             query = query.Where(f => f.Name.Contains(search) || f.Code.Contains(search) || f.District.Contains(search) || f.State.Contains(search));

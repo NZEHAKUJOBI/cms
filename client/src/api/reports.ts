@@ -18,4 +18,7 @@ export const reportsApi = {
 
   getDrugChartData: () =>
     api.get<ApiResponse<DrugChartDataDto>>('/reports/drug-charts').then((r) => r.data.data),
+
+  getStateDashboard: () =>
+    api.get<ApiResponse<DashboardSummaryDto>>('/reports/state-dashboard').then((r) => r.data.data),
 };

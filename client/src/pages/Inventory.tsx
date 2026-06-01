@@ -786,8 +786,8 @@ function ForecastModal({ item, onClose }: { item: InventoryDto; onClose: () => v
 }
 
 export default function Inventory() {
-  const { isAdmin, isFacilityManager, facilityId: authFacilityId, user } = useAuth();
-  const canAdjust = isAdmin || ['FacilityManager', 'Pharmacist'].includes(user?.role ?? '');
+  const { isAdmin, isLaboratory, isPharmacist, facilityId: authFacilityId } = useAuth();
+  const canAdjust = isAdmin || isLaboratory || isPharmacist;
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState<'all' | 'low' | 'expiry' | 'graph'>('all');
   const [modal, setModal] = useState<ModalState>(null);
@@ -813,7 +813,7 @@ export default function Inventory() {
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Inventory</h1>
           <p className="text-sm text-gray-500 mt-0.5 hidden sm:block">Stock levels and expiry tracking</p>
         </div>
-        {(isAdmin || isFacilityManager) && (
+        {(isAdmin || isLaboratory) && (
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowImport(true)}
@@ -845,7 +845,7 @@ export default function Inventory() {
       </div>
 
       {tab === 'graph' && (
-        <StockGraphTab facilityId={isFacilityManager ? (authFacilityId ?? undefined) : undefined} />
+        <StockGraphTab facilityId={isLaboratory ? (authFacilityId ?? undefined) : undefined} />
       )}
 
       {tab !== 'graph' && (
@@ -1042,7 +1042,7 @@ export default function Inventory() {
       </div>
       )}
 
-      {modal?.type === 'create' && <CreateEditModal onClose={() => setModal(null)} lockedFacilityId={isFacilityManager ? (authFacilityId ?? undefined) : undefined} />}
+      {modal?.type === 'create' && <CreateEditModal onClose={() => setModal(null)} lockedFacilityId={isLaboratory ? (authFacilityId ?? undefined) : undefined} />}
       {modal?.type === 'edit' && <CreateEditModal item={modal.item} onClose={() => setModal(null)} />}
       {modal?.type === 'adjust' && <AdjustModal item={modal.item} onClose={() => setModal(null)} />}
       {modal?.type === 'history' && <StockHistoryModal item={modal.item} onClose={() => setModal(null)} />}

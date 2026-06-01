@@ -6,7 +6,7 @@ namespace PSCMS.Services.Interfaces;
 
 public interface IShipmentService
 {
-    Task<PagedResult<ShipmentDto>> GetAllAsync(int page, int pageSize, Guid? facilityId, string? status);
+    Task<PagedResult<ShipmentDto>> GetAllAsync(int page, int pageSize, Guid? facilityId, string? status, string? stateFilter = null);
     Task<ShipmentDto?> GetByIdAsync(Guid id);
     Task<ShipmentDto> CreateAsync(CreateShipmentDto dto, Guid preparedBy);
     Task<ShipmentDto?> UpdateStatusAsync(Guid id, UpdateShipmentStatusDto dto);

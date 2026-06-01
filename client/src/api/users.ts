@@ -10,4 +10,7 @@ export const usersApi = {
 
   update: (id: string, dto: UpdateUserDto) =>
     api.put<ApiResponse<UserDto>>(`/auth/users/${id}`, dto).then((r) => r.data.data),
+
+  delete: (id: string) =>
+    api.delete<ApiResponse<string>>(`/auth/users/${id}`).then((r) => r.data),
 };

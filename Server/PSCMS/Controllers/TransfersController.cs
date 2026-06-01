@@ -16,7 +16,7 @@ public class TransfersController : ControllerBase
 
     public TransfersController(ITransferService transferService) => _transferService = transferService;
 
-    /// <summary>Get paginated stock transfers. FacilityManager scoped to their facility.</summary>
+    /// <summary>Get paginated stock transfers. Laboratory scoped to their facility. StateManager scoped to their state.</summary>
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
@@ -24,12 +24,18 @@ public class TransfersController : ControllerBase
         [FromQuery] Guid? facilityId = null,
         [FromQuery] string? status = null)
     {
-        if (User.IsInRole("FacilityManager"))
+        string? stateFilter = null;
+        if (User.IsInRole("Laboratory"))
         {
             if (Guid.TryParse(User.FindFirstValue("facilityId"), out var fmId))
                 facilityId = fmId;
         }
-        var result = await _transferService.GetAllAsync(page, pageSize, facilityId, status);
+        else if (User.IsInRole("StateManager"))
+        {
+            var smState = User.FindFirstValue("state");
+            if (!string.IsNullOrWhiteSpace(smState)) stateFilter = smState;
+        }
+        var result = await _transferService.GetAllAsync(page, pageSize, facilityId, status, stateFilter);
         return Ok(ApiResponse<PagedResult<StockTransferDto>>.Ok(result));
     }
 
@@ -44,7 +50,7 @@ public class TransfersController : ControllerBase
 
     /// <summary>Create a new stock transfer request.</summary>
     [HttpPost]
-    [Authorize(Roles = "Admin,FacilityManager")]
+    [Authorize(Roles = "Admin,Laboratory")]
     public async Task<IActionResult> Create([FromBody] CreateStockTransferDto dto)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -61,7 +67,7 @@ public class TransfersController : ControllerBase
 
     /// <summary>Update transfer status (Approved/InTransit/Completed/Cancelled). Completing a transfer moves stock between facilities.</summary>
     [HttpPatch("{id:guid}/status")]
-    [Authorize(Roles = "Admin,FacilityManager")]
+    [Authorize(Roles = "Admin,Laboratory")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateTransferStatusDto dto)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

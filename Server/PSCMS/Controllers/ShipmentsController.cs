@@ -17,7 +17,7 @@ public class ShipmentsController : ControllerBase
 
     public ShipmentsController(IShipmentService shipmentService) => _shipmentService = shipmentService;
 
-    /// <summary>Get paginated shipments. FacilityManager auto-scoped to their facility.</summary>
+    /// <summary>Get paginated shipments. Laboratory auto-scoped to their facility. StateManager scoped to their state.</summary>
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
@@ -25,12 +25,18 @@ public class ShipmentsController : ControllerBase
         [FromQuery] Guid? facilityId = null,
         [FromQuery] string? status = null)
     {
-        if (User.IsInRole("FacilityManager"))
+        string? stateFilter = null;
+        if (User.IsInRole("Laboratory"))
         {
             if (Guid.TryParse(User.FindFirstValue("facilityId"), out var fmId))
                 facilityId = fmId;
         }
-        var result = await _shipmentService.GetAllAsync(page, pageSize, facilityId, status);
+        else if (User.IsInRole("StateManager"))
+        {
+            var smState = User.FindFirstValue("state");
+            if (!string.IsNullOrWhiteSpace(smState)) stateFilter = smState;
+        }
+        var result = await _shipmentService.GetAllAsync(page, pageSize, facilityId, status, stateFilter);
         return Ok(ApiResponse<PagedResult<ShipmentDto>>.Ok(result));
     }
 

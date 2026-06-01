@@ -17,6 +17,7 @@ import Forecasting from '@/pages/Forecasting';
 import Reports from '@/pages/Reports';
 import Users from '@/pages/Users';
 import FacilityUsers from '@/pages/FacilityUsers';
+import StateUsers from '@/pages/StateUsers';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 import InstallPrompt from '@/components/InstallPrompt';
@@ -52,6 +53,7 @@ export default function App() {
               <Route path="/reports" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
               <Route path="/users" element={<ProtectedRoute requireAdmin><ErrorBoundary><Users /></ErrorBoundary></ProtectedRoute>} />
               <Route path="/facility-users" element={<ProtectedRoute requirePharmacist><ErrorBoundary><FacilityUsers /></ErrorBoundary></ProtectedRoute>} />
+              <Route path="/state-users" element={<ProtectedRoute requireStateManager><ErrorBoundary><StateUsers /></ErrorBoundary></ProtectedRoute>} />
               <Route path="/" element={<Navigate to="/inventory" replace />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

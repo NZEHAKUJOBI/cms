@@ -25,9 +25,9 @@ public class ReportsController : ControllerBase
         return Ok(ApiResponse<DashboardSummaryDto>.Ok(summary));
     }
 
-    /// <summary>Facility-scoped dashboard for FacilityManager.</summary>
+    /// <summary>Facility-scoped dashboard for Laboratory.</summary>
     [HttpGet("facility-dashboard")]
-    [Authorize(Roles = "FacilityManager")]
+    [Authorize(Roles = "Laboratory")]
     public async Task<IActionResult> FacilityDashboard()
     {
         var facilityIdStr = User.FindFirstValue("facilityId");
@@ -49,8 +49,8 @@ public class ReportsController : ControllerBase
     [HttpGet("stock/{facilityId:guid}")]
     public async Task<IActionResult> StockReport(Guid facilityId)
     {
-        // FacilityManager can only view their own facility report
-        if (User.IsInRole("FacilityManager"))
+        // Laboratory can only view their own facility report
+        if (User.IsInRole("Laboratory"))
         {
             var claimFacilityId = User.FindFirstValue("facilityId");
             if (!Guid.TryParse(claimFacilityId, out var fmFacilityId) || fmFacilityId != facilityId)
@@ -68,16 +68,16 @@ public class ReportsController : ControllerBase
         }
     }
 
-    /// <summary>Order activity report (Admin and FacilityManager, scoped).</summary>
+    /// <summary>Order activity report (Admin, Laboratory, StateManager — scoped).</summary>
     [HttpGet("orders")]
-    [Authorize(Roles = "Admin,FacilityManager")]
+    [Authorize(Roles = "Admin,Laboratory,StateManager")]
     public async Task<IActionResult> OrderReport(
         [FromQuery] DateTime from,
         [FromQuery] DateTime to,
         [FromQuery] Guid? facilityId = null)
     {
-        // FacilityManager always scoped to their facility
-        if (User.IsInRole("FacilityManager"))
+        // Laboratory always scoped to their facility
+        if (User.IsInRole("Laboratory"))
         {
             if (Guid.TryParse(User.FindFirstValue("facilityId"), out var fmFacilityId))
                 facilityId = fmFacilityId;
@@ -85,6 +85,19 @@ public class ReportsController : ControllerBase
 
         var report = await _reportService.GetOrderReportAsync(from, to, facilityId);
         return Ok(ApiResponse<OrderReportDto>.Ok(report));
+    }
+
+    /// <summary>State-scoped dashboard summary for StateManager.</summary>
+    [HttpGet("state-dashboard")]
+    [Authorize(Roles = "StateManager")]
+    public async Task<IActionResult> StateDashboard()
+    {
+        var state = User.FindFirstValue("state");
+        if (string.IsNullOrWhiteSpace(state))
+            return BadRequest(ApiResponse<string>.Fail("No state assigned to this account."));
+
+        var summary = await _reportService.GetStateDashboardAsync(state);
+        return Ok(ApiResponse<DashboardSummaryDto>.Ok(summary));
     }
 
     /// <summary>Drug chart data — products by category, dosage form, and stock availability.</summary>
