@@ -19,6 +19,7 @@ import Users from '@/pages/Users';
 import FacilityUsers from '@/pages/FacilityUsers';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
+import InstallPrompt from '@/components/InstallPrompt';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -70,6 +71,7 @@ export default function App() {
           richColors
           closeButton
         />
+        <InstallPrompt />
       </AuthProvider>
     </QueryClientProvider>
   );
