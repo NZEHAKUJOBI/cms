@@ -112,9 +112,11 @@ export default function Layout() {
     <div className={`flex flex-col h-full ${mobile ? '' : 'w-64'}`}>
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5">
-        <div className="w-9 h-9 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-indigo-500/30">
-          Rx
-        </div>
+        <img
+          src="/logo.png"
+          alt="PSCMS logo"
+          className="w-11 h-11 rounded-xl object-cover bg-white shadow-lg shadow-slate-950/20"
+        />
         <div>
           <span className="text-white font-semibold text-lg tracking-tight">PSCMS</span>
           <div className="text-[10px] text-slate-400 -mt-0.5 font-medium">Supply Chain</div>
