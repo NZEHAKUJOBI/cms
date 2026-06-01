@@ -6,13 +6,13 @@ import { AlertTriangle, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function LowStockBanner() {
-  const { isAdmin, isFacilityManager } = useAuth();
+  const { isAdmin, isStateManager, isLaboratory, isPharmacist } = useAuth();
   const [dismissed, setDismissed] = useState(false);
 
   const { data: lowStockItems = [] } = useQuery({
     queryKey: ['low-stock-banner'],
     queryFn: () => inventoryApi.getLowStockAlerts(),
-    enabled: (isAdmin || isFacilityManager) && !dismissed,
+    enabled: (isAdmin || isStateManager || isLaboratory || isPharmacist) && !dismissed,
     staleTime: 5 * 60 * 1000,
   });
 

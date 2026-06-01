@@ -24,9 +24,9 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 function StockReport() {
-  const { isFacilityManager, facilityId: authFacilityId } = useAuth();
+  const { isLaboratory, facilityId: authFacilityId } = useAuth();
   const [facilityId, setFacilityId] = useState(authFacilityId ?? '');
-  const { data: facilities } = useQuery({ queryKey: ['facilities-all'], queryFn: () => facilitiesApi.getAll(1, 200), enabled: !isFacilityManager });
+  const { data: facilities } = useQuery({ queryKey: ['facilities-all'], queryFn: () => facilitiesApi.getAll(1, 200), enabled: !isLaboratory });
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['stock-report', facilityId],
@@ -56,7 +56,7 @@ function StockReport() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          {!isFacilityManager && (
+          {!isLaboratory && (
             <select
               value={facilityId}
               onChange={(e) => setFacilityId(e.target.value)}
@@ -77,7 +77,7 @@ function StockReport() {
         )}
       </div>
 
-      {!facilityId && !isFacilityManager && <p className="text-gray-400 text-sm">Select a facility to view its stock report.</p>}
+      {!facilityId && !isLaboratory && <p className="text-gray-400 text-sm">Select a facility to view its stock report.</p>}
       {facilityId && isLoading && <p className="text-gray-400 text-sm">Loading…</p>}
       {facilityId && isError && <p className="text-red-500 text-sm">Failed to load report.</p>}
 
@@ -270,7 +270,8 @@ function UsersReport() {
 
   const ROLE_COLORS: Record<string, string> = {
     Admin: 'bg-purple-100 text-purple-700',
-    FacilityManager: 'bg-blue-100 text-blue-700',
+    StateManager: 'bg-indigo-100 text-indigo-700',
+    Laboratory: 'bg-blue-100 text-blue-700',
     Pharmacist: 'bg-teal-100 text-teal-700',
   };
 
@@ -331,12 +332,12 @@ function UsersReport() {
 }
 
 export default function Reports() {
-  const { isAdmin, isFacilityManager } = useAuth();
+  const { isAdmin, isStateManager, isLaboratory } = useAuth();
   const [tab, setTab] = useState<'stock' | 'orders' | 'users'>('stock');
 
   const tabs = [
     { key: 'stock', label: 'Stock Report', show: true },
-    { key: 'orders', label: 'Order Report', show: isAdmin || isFacilityManager },
+    { key: 'orders', label: 'Order Report', show: isAdmin || isStateManager || isLaboratory },
     { key: 'users', label: 'Users Report', show: isAdmin },
   ] as const;
 
@@ -360,7 +361,7 @@ export default function Reports() {
       </div>
 
       {tab === 'stock' && <StockReport />}
-      {tab === 'orders' && (isAdmin || isFacilityManager) && <OrderReport />}
+      {tab === 'orders' && (isAdmin || isStateManager || isLaboratory) && <OrderReport />}
       {tab === 'users' && isAdmin && <UsersReport />}
     </div>
   );

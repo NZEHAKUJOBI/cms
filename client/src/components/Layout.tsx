@@ -104,7 +104,7 @@ export default function Layout() {
   const roleColor =
     user?.role === 'Admin'
       ? 'bg-purple-500/20 text-purple-300'
-      : user?.role === 'FacilityManager'
+      : user?.role === 'StateManager'
         ? 'bg-blue-500/20 text-blue-300'
         : 'bg-emerald-500/20 text-emerald-300';
 

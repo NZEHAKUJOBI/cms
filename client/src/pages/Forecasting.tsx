@@ -252,13 +252,13 @@ function RiskRow({ item, onClick }: { item: RiskItemDto; onClick: () => void }) 
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Forecasting() {
-  const { facilityId: authFacilityId, isFacilityManager } = useAuth();
+  const { facilityId: authFacilityId, isLaboratory } = useAuth();
   const [riskFilter, setRiskFilter] = useState<'All' | 'Critical' | 'Warning' | 'OK'>('All');
   const [page, setPage] = useState(1);
   const pageSize = 20;
   const [selectedItem, setSelectedItem] = useState<RiskItemDto | null>(null);
 
-  const fId = isFacilityManager ? authFacilityId ?? undefined : undefined;
+  const fId = isLaboratory ? authFacilityId ?? undefined : undefined;
 
   const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['risk-summary', fId],
